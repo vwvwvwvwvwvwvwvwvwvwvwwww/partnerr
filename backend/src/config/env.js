@@ -9,9 +9,9 @@ function applyFromDatabaseUrl() {
   if (!raw) {
     return;
   }
-  if (process.env.DB_HOST && process.env.DB_NAME && process.env.DB_USER) {
-    return;
-  }
+
+  // Не выходим раньше времени: если заданы только DB_HOST/DB_NAME/DB_USER без пароля,
+  // разбор DATABASE_URL (Render «Link Database») не выполнялся — Zod падал на DB_PASSWORD.
 
   let normalized = raw;
   if (raw.startsWith('postgres://')) {
@@ -56,7 +56,7 @@ try {
   env = envSchema.parse(process.env);
 } catch (error) {
   console.error(
-    'Ошибка конфигурации окружения: проверьте на Render DATABASE_URL, JWT_SECRET (не короче 32 символов), NODE_ENV.',
+    'Ошибка конфигурации окружения: задайте DATABASE_URL (Render → Link Database) или полный набор DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD. JWT_SECRET ≥ 32 символов.',
   );
   console.error(error);
   throw error;
