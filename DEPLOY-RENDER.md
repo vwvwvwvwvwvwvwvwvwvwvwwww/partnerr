@@ -33,21 +33,16 @@
      На Render часто задано `NODE_ENV=production`; тогда `npm install` **без флага** не ставит **devDependencies**, и **`vite` не находится** при сборке. Скрипт **`install:all`** в репозитории использует для frontend **`npm install --include=dev`**, чтобы Vite ставился и на production-сборке.
 
      Если Render подставил шаблон вида `$ npm install` — **удали `$`**, иначе shell может вернуть **ошибку 127** («команда не найдена»).
-   - **Start Command:** `NODE_ENV=production npm run start --prefix backend`
+   - **Start Command:** `NODE_ENV=production node backend/src/server.js` (из корня репозитория; тот же вариант, что в `render.yaml`).
+   - **Health Check Path** (вкладка сервиса → **Settings** → блок про health / availability): **`/api/health`** или **`/health`** (ответ **200**, без редиректа на логин).
 3. **Environment** (переменные):
    - `NODE_ENV` = `production`
    - **`DATABASE_URL`** — **Internal Database URL** из созданной Postgres (копируется из вкладки подключения к БД; либо привяжи БД через **Link Database** в UI — Render сам добавит `DATABASE_URL`).
-   - **`APP_ORIGIN`** — после первого деплоя будет URL вида `https://agro-erp-xxxx.onrender.com`. Укажи **точно** этот URL (с `https`, без `/` в конце). Если URL изменился — обнови и сделай **Manual Deploy**.
+   - **`APP_ORIGIN`** — публичный URL вида `https://….onrender.com` (**без** `/` в конце). Render добавляет **`RENDER_EXTERNAL_URL`**; в коде **`APP_ORIGIN` подставится сам**, если переменную не задали. При смене домена лучше задать явно и сделать **Manual Deploy**.
    - **`JWT_SECRET`** — случайная строка **≥ 32 символов**.
    - **`VITE_API_URL`** = `/api` (нужна для сборки; можно добавить в группе «Build» / общие env — на Render обычно доступны и при build, и при runtime).
 
-4. **Advanced** → **Release Command** (опционально, миграции при каждом деплое):
-
-   ```bash
-   NODE_ENV=production npm run migrate --prefix backend
-   ```
-
-   Либо один раз после деплоя: **Shell** у Web Service → `npm run migrate --prefix backend`.
+4. **Миграции БД** после первого успешного деплоя: **Shell** у Web Service → `npm run migrate --prefix backend` (или из корня тот же скрипт). Расширения PostGIS в БД — см. п. 1.
 
 5. **Create Web Service** и дождись сборки.
 
@@ -55,10 +50,10 @@
 
 1. В корне репозитория уже есть **`render.yaml`**.
 2. Dashboard → **Blueprints** → **New Blueprint Instance** → выбери репозиторий.
-3. При применении укажи **`APP_ORIGIN`** и **`JWT_SECRET`** (если спросит).
+3. При применении укажи **`JWT_SECRET`** (если спросит). **`APP_ORIGIN`** можно не задавать — подставится из **`RENDER_EXTERNAL_URL`** на Render.
 4. Не забудь шаг с **PostGIS** в новой БД (см. п. 1).
 
-После деплоя проверь, что **`APP_ORIGIN`** совпадает с **публичным URL** сервиса — иначе CORS и cookies не сработают.
+После деплоя при необходимости сверь **`APP_ORIGIN`** с публичным URL (или оставь авто из `RENDER_EXTERNAL_URL`) — иначе CORS и cookies могут мешать.
 
 ## 4. Администратор и сотрудники
 

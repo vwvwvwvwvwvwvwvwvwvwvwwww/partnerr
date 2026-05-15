@@ -47,6 +47,20 @@ function applyAppOriginFromRailway() {
 
 applyAppOriginFromRailway();
 
+/** Render задаёт RENDER_EXTERNAL_URL (https://…onrender.com). */
+function applyAppOriginFromRender() {
+  if (process.env.APP_ORIGIN?.trim()) {
+    return;
+  }
+  const raw = process.env.RENDER_EXTERNAL_URL?.trim();
+  if (!raw) {
+    return;
+  }
+  process.env.APP_ORIGIN = raw.replace(/\/$/, '');
+}
+
+applyAppOriginFromRender();
+
 /** Скрипт миграций не использует JWT; в pre-deploy (Railway и др.) JWT_SECRET часто не задан — не блокируем migrate. */
 const MIGRATE_JWT_PLACEHOLDER = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
 
@@ -85,7 +99,7 @@ try {
   env = envSchema.parse(process.env);
 } catch (error) {
   console.error(
-    'Ошибка конфигурации окружения: DATABASE_URL; JWT_SECRET ≥ 32 символов. На Railway APP_ORIGIN подставится из RAILWAY_PUBLIC_DOMAIN, если не задан.',
+    'Ошибка конфигурации окружения: DATABASE_URL; JWT_SECRET ≥ 32 символов. APP_ORIGIN: задайте вручную или подставится из RAILWAY_PUBLIC_DOMAIN / RENDER_EXTERNAL_URL.',
   );
   console.error(error);
   throw error;

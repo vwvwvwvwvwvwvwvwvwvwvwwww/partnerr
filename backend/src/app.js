@@ -28,10 +28,12 @@ if (isProduction) {
   app.set('trust proxy', 1);
 }
 
-/** До helmet/CORS/rate-limit: Railway healthcheck и мониторинги не должны ловить 403/429/CORS. */
+/** До helmet/CORS/rate-limit: healthcheck PaaS (Render/Railway) не должен ловить 403/429/CORS. */
 const healthPayload = { status: 'ok' };
 app.get('/api/health', (req, res) => res.json(healthPayload));
+app.head('/api/health', (req, res) => res.status(200).end());
 app.get('/health', (req, res) => res.json(healthPayload));
+app.head('/health', (req, res) => res.status(200).end());
 
 app.use(
   helmet({

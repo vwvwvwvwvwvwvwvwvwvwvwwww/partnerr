@@ -20,8 +20,7 @@ services:
     region: frankfurt
     rootDir: .
     buildCommand: npm install && npm run install:all && npm run build
-    startCommand: NODE_ENV=production npm run start --prefix backend
-    releaseCommand: NODE_ENV=production npm run migrate --prefix backend
+    startCommand: NODE_ENV=production node backend/src/server.js
     envVars:
       - key: NODE_ENV
         value: production
