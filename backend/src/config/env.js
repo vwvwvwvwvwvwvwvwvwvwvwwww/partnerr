@@ -51,6 +51,17 @@ const envSchema = z.object({
   SESSION_COOKIE_NAME: z.string().min(1).default('session_token'),
 });
 
-export const env = envSchema.parse(process.env);
+let env;
+try {
+  env = envSchema.parse(process.env);
+} catch (error) {
+  console.error(
+    'Ошибка конфигурации окружения: проверьте на Render DATABASE_URL, JWT_SECRET (не короче 32 символов), NODE_ENV.',
+  );
+  console.error(error);
+  throw error;
+}
+
+export { env };
 
 export const isProduction = env.NODE_ENV === 'production';
