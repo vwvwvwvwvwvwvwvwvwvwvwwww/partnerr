@@ -24,7 +24,15 @@
 1. **New +** → **Web Service** → подключи репозиторий.
 2. Настройки:
    - **Root Directory** — корень репозитория (`.`).
-   - **Build Command:** `npm run install:all && npm run build`
+   - **Build Command** (без символа `$` в начале строки):
+
+     ```bash
+     npm install && npm run install:all && npm run build
+     ```
+
+     На Render часто задано `NODE_ENV=production`; тогда `npm install` **без флага** не ставит **devDependencies**, и **`vite` не находится** при сборке. Скрипт **`install:all`** в репозитории использует для frontend **`npm install --include=dev`**, чтобы Vite ставился и на production-сборке.
+
+     Если Render подставил шаблон вида `$ npm install` — **удали `$`**, иначе shell может вернуть **ошибку 127** («команда не найдена»).
    - **Start Command:** `NODE_ENV=production npm run start --prefix backend`
 3. **Environment** (переменные):
    - `NODE_ENV` = `production`
