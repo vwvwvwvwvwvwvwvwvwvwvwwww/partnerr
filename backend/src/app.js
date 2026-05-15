@@ -144,7 +144,8 @@ if (frontendDistDir) {
       maxAge: isProduction ? '7d' : 0,
     }),
   );
-  app.get('*', (req, res, next) => {
+  /** Express 5 / path-to-regexp: маршрут '*' недопустим; SPA-fallback через middleware после static. */
+  app.use((req, res, next) => {
     if (req.method !== 'GET' && req.method !== 'HEAD') {
       return next();
     }
