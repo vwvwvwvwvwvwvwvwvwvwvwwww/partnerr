@@ -1,0 +1,14 @@
+{
+  "$schema": "https://railway.com/railway.schema.json",
+  "build": {
+    "builder": "RAILPACK",
+    "buildCommand": "npm install && npm run install:all && npm run build"
+  },
+  "deploy": {
+    "startCommand": "NODE_ENV=production npm run start --prefix backend",
+    "preDeployCommand": ["sh", "-c", "NODE_ENV=production npm run migrate"],
+    "healthcheckPath": "/api/health",
+    "healthcheckTimeout": 120,
+    "restartPolicyType": "ON_FAILURE"
+  }
+}

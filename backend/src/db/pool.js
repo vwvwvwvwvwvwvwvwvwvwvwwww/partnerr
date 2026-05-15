@@ -9,7 +9,7 @@ function poolSslOption() {
   if (raw.includes('sslmode=require') || raw.includes('sslmode=prefer')) {
     return { rejectUnauthorized: false };
   }
-  if (env.DB_HOST && /render\.com|neon\.tech|supabase\.co/i.test(env.DB_HOST)) {
+  if (env.DB_HOST && /render\.com|neon\.tech|supabase\.co|railway\.internal|rlwy\.net|railway\.app/i.test(env.DB_HOST)) {
     return { rejectUnauthorized: false };
   }
   return undefined;
