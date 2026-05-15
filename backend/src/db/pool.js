@@ -31,7 +31,7 @@ export const pool = new Pool({
 });
 
 pool.on('error', (error) => {
-  console.error('Неожиданная ошибка PostgreSQL:', error);
+  console.error('Ошибка клиента пула PostgreSQL (часто SSL, обрыв сети, перезапуск БД на Railway):', error);
 });
 
 export async function query(textOrConfig, params = []) {
