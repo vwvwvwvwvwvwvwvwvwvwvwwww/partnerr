@@ -21,7 +21,7 @@ export function errorHandler(error, req, res, next) {
   if (error.code === '42P01') {
     return res.status(503).json({
       error: isProduction
-        ? 'Сервис временно недоступен'
+        ? 'Сервис временно недоступен: в базе ещё нет таблиц приложения. Выполните на сервере миграции (README / DEPLOY-RAILWAY): npm run migrate --prefix backend, затем create-admin при необходимости.'
         : 'В базе нет таблиц приложения. Из корня проекта выполните: npm run migrate, затем npm run bootstrap (или npm run create-admin и npm run seed-staff).',
     });
   }
