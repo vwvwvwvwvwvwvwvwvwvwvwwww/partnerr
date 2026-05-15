@@ -1,0 +1,25 @@
+# Зависимости
+node_modules/
+
+# Секреты и локальные env (не коммитить)
+.env
+.env.local
+.env.*.local
+backend/.env
+frontend/.env
+
+# Сборка
+dist/
+frontend/dist/
+*.tsbuildinfo
+
+# Логи и ОС
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/*
+!.vscode/extensions.json

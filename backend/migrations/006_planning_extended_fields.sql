@@ -1,0 +1,18 @@
+ALTER TABLE technology_cards
+    ADD COLUMN IF NOT EXISTS work_name VARCHAR(200),
+    ADD COLUMN IF NOT EXISTS unit VARCHAR(20),
+    ADD COLUMN IF NOT EXISTS work_volume NUMERIC(12,2),
+    ADD COLUMN IF NOT EXISTS conversion_coefficient NUMERIC(10,2),
+    ADD COLUMN IF NOT EXISTS equivalent_area_ha NUMERIC(12,2),
+    ADD COLUMN IF NOT EXISTS aggregate_composition TEXT,
+    ADD COLUMN IF NOT EXISTS aggregates_count INTEGER,
+    ADD COLUMN IF NOT EXISTS mechanizators_count INTEGER,
+    ADD COLUMN IF NOT EXISTS workers_count INTEGER,
+    ADD COLUMN IF NOT EXISTS output_norm NUMERIC(12,2),
+    ADD COLUMN IF NOT EXISTS norm_shifts_count NUMERIC(12,2),
+    ADD COLUMN IF NOT EXISTS labor_costs NUMERIC(12,2),
+    ADD COLUMN IF NOT EXISTS tariff_rate NUMERIC(12,2),
+    ADD COLUMN IF NOT EXISTS tariff_fund NUMERIC(14,2),
+    ADD COLUMN IF NOT EXISTS extra_pay NUMERIC(14,2),
+    ADD COLUMN IF NOT EXISTS fuel_rate NUMERIC(12,2),
+    ADD COLUMN IF NOT EXISTS fuel_total_liters NUMERIC(14,2);

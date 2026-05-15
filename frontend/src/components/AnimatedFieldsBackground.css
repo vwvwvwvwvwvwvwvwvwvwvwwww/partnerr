@@ -1,0 +1,183 @@
+.animated-fields-background {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.animated-fields-background__svg {
+  width: 100%;
+  height: 100%;
+  opacity: 0.52;
+  filter: saturate(0.98) blur(0.12px);
+}
+
+.animated-fields-background--static .fields-cloud,
+.animated-fields-background--static .fields-parcel,
+.animated-fields-background--static .fields-road-network {
+  animation: none !important;
+}
+
+.fields-boundaries path {
+  fill: none;
+  stroke: rgba(255, 245, 221, 0.7);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 7;
+}
+
+.fields-road-network path {
+  fill: none;
+  stroke: rgba(244, 239, 226, 0.72);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 14;
+}
+
+.animated-fields-background--animated .fields-cloud--one {
+  animation: cloudDrift 44s linear infinite;
+}
+
+.animated-fields-background--animated .fields-cloud--two {
+  animation: cloudDrift 56s linear infinite reverse;
+}
+
+.animated-fields-background--animated .fields-parcel--1,
+.animated-fields-background--animated .fields-parcel--4,
+.animated-fields-background--animated .fields-parcel--7,
+.animated-fields-background--animated .fields-parcel--10 {
+  animation: fieldBreezeA 5.5s ease-in-out infinite;
+  transform-origin: center;
+}
+
+.animated-fields-background--animated .fields-parcel--2,
+.animated-fields-background--animated .fields-parcel--5,
+.animated-fields-background--animated .fields-parcel--8 {
+  animation: fieldBreezeB 6.4s ease-in-out infinite;
+  transform-origin: center;
+}
+
+.animated-fields-background--animated .fields-parcel--3,
+.animated-fields-background--animated .fields-parcel--6,
+.animated-fields-background--animated .fields-parcel--9 {
+  animation: fieldBreezeC 5.9s ease-in-out infinite;
+  transform-origin: center;
+}
+
+.animated-fields-background--animated .fields-road-network {
+  animation: roadShift 10s ease-in-out infinite;
+  transform-origin: center;
+}
+
+.animated-fields-background--animated .fields-land {
+  animation: landBreath 9s ease-in-out infinite;
+  transform-origin: center;
+}
+
+@keyframes cloudDrift {
+  0% {
+    transform: translate3d(-4%, 0, 0);
+  }
+
+  50% {
+    transform: translate3d(3%, 1%, 0);
+  }
+
+  100% {
+    transform: translate3d(-4%, 0, 0);
+  }
+}
+
+@keyframes fieldBreezeA {
+  0% {
+    transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
+  }
+
+  50% {
+    transform: translate3d(1.3%, -0.7%, 0) rotate(0.9deg) scale(1.026);
+  }
+
+  100% {
+    transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
+  }
+}
+
+@keyframes fieldBreezeB {
+  0% {
+    transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
+  }
+
+  50% {
+    transform: translate3d(-1.15%, 0.8%, 0) rotate(-0.8deg) scale(1.02);
+  }
+
+  100% {
+    transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
+  }
+}
+
+@keyframes fieldBreezeC {
+  0% {
+    transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
+  }
+
+  50% {
+    transform: translate3d(0.95%, 0.5%, 0) rotate(0.65deg) scale(1.018);
+  }
+
+  100% {
+    transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
+  }
+}
+
+@keyframes roadShift {
+  0% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+
+  50% {
+    opacity: 0.84;
+    transform: translate3d(0.7%, 0.45%, 0);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes landBreath {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+
+  50% {
+    transform: translate3d(0.4%, -0.2%, 0) scale(1.01);
+  }
+
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@media (max-width: 900px) {
+  .animated-fields-background__svg {
+    opacity: 0.3;
+  }
+
+  .fields-cloud--two,
+  .fields-parcel--9,
+  .fields-parcel--10 {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fields-cloud,
+  .fields-parcel,
+  .fields-road-network {
+    animation: none !important;
+  }
+}

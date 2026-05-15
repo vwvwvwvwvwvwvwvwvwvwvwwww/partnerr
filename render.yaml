@@ -1,0 +1,40 @@
+# Blueprint для https://render.com
+# Документация: https://render.com/docs/infrastructure-as-code
+#
+# Перед первым деплоем: в панели PostgreSQL → Query / psql выполните:
+#   CREATE EXTENSION IF NOT EXISTS postgis;
+#   CREATE EXTENSION IF NOT EXISTS pgcrypto;
+# После первого деплоя Web Service скопируйте его URL и задайте APP_ORIGIN = этот URL (Environment).
+
+databases:
+  - name: agro-erp-db
+    plan: free
+    databaseName: agro_erp
+    user: agro_erp
+
+services:
+  - type: web
+    name: agro-erp
+    runtime: node
+    plan: free
+    region: frankfurt
+    rootDir: .
+    buildCommand: npm run install:all && npm run build
+    startCommand: NODE_ENV=production npm run start --prefix backend
+    releaseCommand: NODE_ENV=production npm run migrate --prefix backend
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: VITE_API_URL
+        value: /api
+      - key: DATABASE_URL
+        fromDatabase:
+          name: agro-erp-db
+          property: connectionString
+      # Укажите при создании Blueprint или в Dashboard → Environment:
+      # APP_ORIGIN = https://<имя-сервиса>.onrender.com (без слэша в конце)
+      - key: APP_ORIGIN
+        sync: false
+      # Случайная строка не короче 32 символов
+      - key: JWT_SECRET
+        sync: false
