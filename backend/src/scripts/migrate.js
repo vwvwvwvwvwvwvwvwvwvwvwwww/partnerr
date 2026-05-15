@@ -53,19 +53,10 @@ async function migrate() {
       const sql = await fs.readFile(fullPath, 'utf8');
 
       console.log(`Выполняется миграция: ${file}`);
-      try {
-        await client.query('BEGIN');
-        await client.query(sql);
-        await client.query('INSERT INTO schema_migrations (filename) VALUES ($1)', [file]);
-        await client.query('COMMIT');
-      } catch (inner) {
-        try {
-          await client.query('ROLLBACK');
-        } catch {
-          /* ignore */
-        }
-        throw inner;
-      }
+      // Не оборачиваем файл в BEGIN/COMMIT: CREATE EXTENSION и часть шагов PostGIS
+      // на управляемых Postgres (Render и др.) не должны выполняться внутри явной транзакции.
+      await client.query(sql);
+      await client.query('INSERT INTO schema_migrations (filename) VALUES ($1)', [file]);
     }
 
     console.log('Все миграции выполнены успешно');
