@@ -1,4 +1,4 @@
-import { isSmtpConfigured } from '../../config/env.js';
+import { getSmtpDiagnostics, isSmtpConfigured } from '../../config/env.js';
 import { query } from '../../db/pool.js';
 import { sendMail } from '../../mail/mailer.js';
 import { parseEmailList } from '../../utils/email-list.js';
@@ -139,10 +139,32 @@ export function queueWaybillEmail(waybillId) {
 }
 
 export async function getSmtpStatus() {
+  const diagnostics = getSmtpDiagnostics();
+  const configured = isSmtpConfigured();
+
+  if (configured) {
+    return {
+      configured: true,
+      diagnostics,
+      message:
+        'SMTP настроен — путевой лист можно отправить на один или несколько e-mail (через запятую).',
+    };
+  }
+
+  const missing = [];
+  if (!diagnostics.host) {
+    missing.push('SMTP_HOST');
+  }
+  if (!diagnostics.from) {
+    missing.push('SMTP_FROM');
+  }
+
   return {
-    configured: isSmtpConfigured(),
-    message: isSmtpConfigured()
-      ? 'SMTP настроен — путевой лист можно отправить на один или несколько e-mail (через запятую).'
-      : REASON_MESSAGES.smtp_not_configured,
+    configured: false,
+    diagnostics,
+    message:
+      missing.length > 0
+        ? `Почта не настроена: не задано ${missing.join(' и ')}. Добавьте в Railway Variables и сделайте Redeploy.`
+        : REASON_MESSAGES.smtp_not_configured,
   };
 }

@@ -335,5 +335,15 @@ export { env };
 export const isProduction = env.NODE_ENV === 'production';
 
 export function isSmtpConfigured() {
-  return Boolean(env.SMTP_HOST?.trim() && env.SMTP_FROM?.trim());
+  const host = (process.env.SMTP_HOST ?? env.SMTP_HOST ?? '').trim();
+  const from = (process.env.SMTP_FROM ?? env.SMTP_FROM ?? '').trim();
+  return Boolean(host && from);
+}
+
+export function getSmtpDiagnostics() {
+  const host = Boolean((process.env.SMTP_HOST ?? env.SMTP_HOST ?? '').trim());
+  const from = Boolean((process.env.SMTP_FROM ?? env.SMTP_FROM ?? '').trim());
+  const user = Boolean((process.env.SMTP_USER ?? env.SMTP_USER ?? '').trim());
+  const pass = Boolean((process.env.SMTP_PASS ?? env.SMTP_PASS ?? '').trim());
+  return { host, from, user, pass };
 }

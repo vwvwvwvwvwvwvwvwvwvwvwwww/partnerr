@@ -1,5 +1,5 @@
 import app from './app.js';
-import { env } from './config/env.js';
+import { env, getSmtpDiagnostics } from './config/env.js';
 
 process.on('uncaughtException', (err) => {
   console.error('uncaughtException:', err?.stack || err);
@@ -17,8 +17,12 @@ process.on('unhandledRejection', (reason) => {
 });
 
 const server = app.listen(env.PORT, '0.0.0.0', () => {
+  const smtp = getSmtpDiagnostics();
   console.log(
     `ERP backend слушает порт ${env.PORT} (0.0.0.0), DB_DRIVER=${env.DB_DRIVER}, NODE_ENV=${env.NODE_ENV}`,
+  );
+  console.log(
+    `SMTP: host=${smtp.host} from=${smtp.from} user=${smtp.user} pass=${smtp.pass}`,
   );
 });
 
