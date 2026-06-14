@@ -64,22 +64,33 @@ function ensureDatabaseUrl() {
 function logDatabaseEnvDiagnostics() {
   const set = (k) => Boolean(process.env[k]?.toString().trim());
   const jwtOk = (process.env.JWT_SECRET?.length ?? 0) >= 32;
+  const driver = process.env.DB_DRIVER?.trim() || 'sqlite';
   // eslint-disable-next-line no-console
   console.error('Проверка переменных (true = задано непустое, без вывода значений):', {
+    DB_DRIVER: driver,
+    SQLITE_PATH: set('SQLITE_PATH'),
     DATABASE_URL: set('DATABASE_URL'),
-    DATABASE_PRIVATE_URL: set('DATABASE_PRIVATE_URL'),
-    DATABASE_PUBLIC_URL: set('DATABASE_PUBLIC_URL'),
-    POSTGRES_URL: set('POSTGRES_URL'),
-    POSTGRES_PRISMA_URL: set('POSTGRES_PRISMA_URL'),
-    PGHOST: set('PGHOST'),
-    PGUSER: set('PGUSER'),
-    PGDATABASE: set('PGDATABASE'),
-    PGPASSWORD: set('PGPASSWORD'),
     JWT_SECRET_length_ok: jwtOk,
+    NODE_ENV: process.env.NODE_ENV ?? '(не задано)',
+    PORT: process.env.PORT ?? '(Railway задаёт сам)',
   });
+  if (driver === 'sqlite') {
+    // eslint-disable-next-line no-console
+    console.error(
+      [
+        '→ Railway (SQLite): в Variables сервиса приложения задайте:',
+        '  DB_DRIVER=sqlite',
+        '  JWT_SECRET — случайная строка ≥ 32 символов',
+        '  NODE_ENV=production',
+        '  VITE_API_URL=/api (для сборки фронта)',
+        '  DATABASE_URL и Postgres-сервис НЕ нужны — удалите Reference на Postgres, если добавляли.',
+      ].join('\n'),
+    );
+    return;
+  }
   // eslint-disable-next-line no-console
   console.error(
-    'В Railway у сервиса приложения добавьте: Variable DATABASE_URL → Reference → ваш Postgres → DATABASE_URL (см. https://docs.railway.com/guides/variables ). И JWT_SECRET ≥ 32 символов.',
+    '→ Postgres: нужны DB_DRIVER=postgres и DATABASE_URL (или DB_HOST/DB_USER/…). JWT_SECRET ≥ 32 символов.',
   );
 }
 
@@ -165,9 +176,9 @@ function applyFromDatabaseUrl() {
 ensureDatabaseUrl();
 applyFromDatabaseUrl();
 
+/** По умолчанию SQLite. Postgres — только если явно DB_DRIVER=postgres (Railway часто инжектит DATABASE_URL от плагина Postgres). */
 if (!process.env.DB_DRIVER?.trim()) {
-  process.env.DB_DRIVER =
-    process.env.DATABASE_URL?.trim() || process.env.DB_HOST?.trim() ? 'postgres' : 'sqlite';
+  process.env.DB_DRIVER = 'sqlite';
 }
 
 /** Railway задаёт RAILWAY_PUBLIC_DOMAIN; без APP_ORIGIN CORS ломается в браузере. */

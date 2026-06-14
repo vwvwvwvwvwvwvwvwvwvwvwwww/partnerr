@@ -17,7 +17,9 @@ process.on('unhandledRejection', (reason) => {
 });
 
 const server = app.listen(env.PORT, '0.0.0.0', () => {
-  console.log(`ERP backend слушает порт ${env.PORT} (0.0.0.0)`);
+  console.log(
+    `ERP backend слушает порт ${env.PORT} (0.0.0.0), DB_DRIVER=${env.DB_DRIVER}, NODE_ENV=${env.NODE_ENV}`,
+  );
 });
 
 server.on('error', (err) => {

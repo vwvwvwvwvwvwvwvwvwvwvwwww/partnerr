@@ -68,7 +68,7 @@ git push -u origin main
 |------------|----------|
 | `NODE_ENV` | `production` |
 | `DB_DRIVER` | `sqlite` |
-| `SQLITE_PATH` | `./backend/data/agro_erp.sqlite` |
+| `SQLITE_PATH` | `./data/agro_erp.sqlite` |
 | `VITE_API_URL` | `/api` |
 | `JWT_SECRET` | случайная строка **≥ 32 символов** |
 

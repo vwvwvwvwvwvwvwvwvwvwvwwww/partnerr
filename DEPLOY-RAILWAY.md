@@ -43,6 +43,20 @@ npm run seed-sqlite-demo --prefix backend
 2. `https://…/api/health` → `{"status":"ok"}`
 3. Вход: `admin` / ваш пароль
 
+## 4.1. «Application failed to respond» (502)
+
+Чаще всего контейнер **падает при старте**, а не «завис»:
+
+1. **Deploy Logs** → ищите `Ошибка конфигурации окружения` или `Не удалось подключиться к PostgreSQL`.
+2. В **Variables** обязательно:
+   - `DB_DRIVER` = `sqlite`
+   - `JWT_SECRET` = строка **≥ 32 символов** (без неё сервер не запустится)
+   - `NODE_ENV` = `production`
+   - `VITE_API_URL` = `/api`
+3. Если добавляли сервис **PostgreSQL** в Railway — **удалите** его или уберите Reference `DATABASE_URL` у web-сервиса. Для этого проекта Postgres не нужен.
+4. `SQLITE_PATH` — `./data/agro_erp.sqlite` (путь от папки `backend`, не `./backend/data/…`).
+5. После правок: **Redeploy** и снова проверьте `/api/health`.
+
 ## 5. PostgreSQL (опционально)
 
 Если нужен Postgres локально с PostGIS: `DB_DRIVER=postgres` и `DB_*` в `backend/.env`. Для хостинга это **не обязательно**.
