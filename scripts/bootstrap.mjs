@@ -46,6 +46,9 @@ async function main() {
   console.log('\n→ Демо-данные (поля, склад, культуры)…');
   execSync('npm run seed-sqlite-demo --prefix backend', { cwd: root, stdio: 'inherit' });
 
+  console.log('\n→ Демо-финансы (реализация урожая, расходы)…');
+  execSync('npm run seed-finance --prefix backend', { cwd: root, stdio: 'inherit' });
+
   console.log('\n=== Готово ===');
   console.log('Сайт:   http://127.0.0.1:8848  (порт см. VITE_DEV_PORT; при занятом порте — смотри терминал Vite)');
   console.log('API:    http://127.0.0.1:4010');

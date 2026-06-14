@@ -26,8 +26,10 @@
 
 ## 3. Сборка и старт (`railway.json`)
 
-- **Build:** `npm install && npm run install:all && npm run build`
-- **Start:** `npm run start:railway` — миграции SQLite + сервер
+- **Build:** `npm install` → `install:all` → `build` → **миграции SQLite** (схема БД в образе)
+- **Start:** `node scripts/railway-start.mjs` — проверка `JWT_SECRET`, догон миграций, сервер
+
+`PORT` задаёт Railway — backend его читает.
 
 После первого деплоя в [Shell](https://docs.railway.com/guides/cli#shell):
 
@@ -35,6 +37,7 @@
 ADMIN_USERNAME=admin ADMIN_PASSWORD='ВашНадёжныйПароль' ADMIN_FULL_NAME='Администратор' npm run create-admin --prefix backend
 SEED_STAFF_PASSWORD='ВашНадёжныйПароль' npm run seed-staff --prefix backend
 npm run seed-sqlite-demo --prefix backend
+npm run seed-finance --prefix backend
 ```
 
 ## 4. Проверка
@@ -43,19 +46,12 @@ npm run seed-sqlite-demo --prefix backend
 2. `https://…/api/health` → `{"status":"ok"}`
 3. Вход: `admin` / ваш пароль
 
-## 4.1. «Application failed to respond» (502)
+## 4.1. Healthcheck failure / 502
 
-Чаще всего контейнер **падает при старте**, а не «завис»:
-
-1. **Deploy Logs** → ищите `Ошибка конфигурации окружения` или `Не удалось подключиться к PostgreSQL`.
-2. В **Variables** обязательно:
-   - `DB_DRIVER` = `sqlite`
-   - `JWT_SECRET` = строка **≥ 32 символов** (без неё сервер не запустится)
-   - `NODE_ENV` = `production`
-   - `VITE_API_URL` = `/api`
-3. Если добавляли сервис **PostgreSQL** в Railway — **удалите** его или уберите Reference `DATABASE_URL` у web-сервиса. Для этого проекта Postgres не нужен.
-4. `SQLITE_PATH` — `./data/agro_erp.sqlite` (путь от папки `backend`, не `./backend/data/…`).
-5. После правок: **Redeploy** и снова проверьте `/api/health`.
+1. **Deploy Logs** → `[railway-start] JWT_SECRET не задан` — добавьте переменную (≥ 32 символов).
+2. Или `migrate завершился с кодом` — проверьте `DB_DRIVER=sqlite`, права на запись в `backend/data/`.
+3. Уберите Reference `DATABASE_URL` от Postgres, если добавляли.
+4. После правок — **Redeploy**.
 
 ## 5. PostgreSQL (опционально)
 
