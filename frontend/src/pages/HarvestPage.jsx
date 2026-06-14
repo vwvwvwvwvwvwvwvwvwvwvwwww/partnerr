@@ -4,6 +4,7 @@ import DataTable from '../components/DataTable';
 import PageStack from '../components/PageStack';
 import EntityModalContent from '../components/EntityModalContent';
 import { validateForm } from '../utils/validation';
+import { hasEmailList } from '../utils/email-list';
 
 const actionOptions = [
   'Боронование',
@@ -56,7 +57,7 @@ const detailsFields = [
   { key: 'fieldName', label: 'Поле' },
   { key: 'cropName', label: 'Культура из справочника' },
   { key: 'driverName', label: 'Водитель' },
-  { key: 'driverEmail', label: 'E-mail водителя' },
+  { key: 'driverEmail', label: 'E-mail для уведомлений' },
   { key: 'mechanizatorName', label: 'Механизатор' },
   { key: 'vehicleNumber', label: 'Транспорт' },
   { key: 'trailerNumber', label: 'Прицеп / полуприцеп' },
@@ -214,7 +215,7 @@ export default function HarvestPage({ user }) {
         options: crops.map((crop) => ({ value: String(crop.id), label: crop.name })),
       },
       { name: 'driverName', label: 'Водитель', required: true, minLength: 3 },
-      { name: 'driverEmail', label: 'E-mail водителя', type: 'email' },
+      { name: 'driverEmail', label: 'E-mail для уведомлений', placeholder: 'voditel@mail.ru, buh@mail.ru — через запятую' },
       { name: 'mechanizatorName', label: 'Механизатор', minLength: 3 },
       { name: 'vehicleNumber', label: 'Транспорт', required: true, minLength: 2 },
       { name: 'trailerNumber', label: 'Прицеп / полуприцеп' },
@@ -517,7 +518,7 @@ export default function HarvestPage({ user }) {
             <div>
               <h2>Новый путевой лист</h2>
               <p className="section-header__hint">
-                После сохранения DOCX отправляется на e-mail водителя (если указан и настроен SMTP на сервере).
+                После сохранения DOCX отправляется на все указанные e-mail (через запятую). Дополнительные адреса можно задать в WAYBILL_NOTIFY_EMAILS на сервере.
               </p>
               {smtpStatus && !smtpStatus.configured ? (
                 <p className="section-header__hint field__error" style={{ marginTop: '0.5rem' }}>
@@ -580,26 +581,26 @@ export default function HarvestPage({ user }) {
               />
               <datalist id="harvest-drivers">
                 {drivers.map((driver) => (
-                  <option key={driver.id} value={driver.fullName} />
+                  <option key={`${driver.driverName}-${driver.driverEmail}`} value={driver.driverName} />
                 ))}
               </datalist>
             </label>
             <label className="field">
-              <span>E-mail водителя</span>
+              <span>E-mail для уведомлений</span>
               <input
-                type="email"
-                placeholder="Для отправки путевого листа"
+                placeholder="voditel@mail.ru, agronom@mail.ru, buh@mail.ru"
                 value={form.driverEmail}
                 onChange={(event) => setForm((prev) => ({ ...prev, driverEmail: event.target.value }))}
                 onBlur={() => {
                   const match = drivers.find(
-                    (d) => d.fullName?.trim().toLowerCase() === form.driverName.trim().toLowerCase(),
+                    (d) => d.driverName?.trim().toLowerCase() === form.driverName.trim().toLowerCase(),
                   );
-                  if (match?.email && !form.driverEmail) {
-                    setForm((prev) => ({ ...prev, driverEmail: match.email }));
+                  if (match?.driverEmail && !form.driverEmail) {
+                    setForm((prev) => ({ ...prev, driverEmail: match.driverEmail }));
                   }
                 }}
               />
+              <span className="field__hint">Несколько адресов — через запятую или точку с запятой</span>
             </label>
             <label className="field">
               <span>Механизатор</span>
@@ -770,7 +771,7 @@ export default function HarvestPage({ user }) {
                   ? () => (
                       <button
                         className="button button--secondary"
-                        disabled={!row.driverEmail || sendingEmailId === row.id}
+                        disabled={!hasEmailList(row.driverEmail) || sendingEmailId === row.id}
                         onClick={() => handleSendWaybillEmail(row)}
                         type="button"
                       >

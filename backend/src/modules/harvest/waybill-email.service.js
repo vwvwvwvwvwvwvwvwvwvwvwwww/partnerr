@@ -1,16 +1,24 @@
 import { isSmtpConfigured } from '../../config/env.js';
 import { query } from '../../db/pool.js';
 import { sendMail } from '../../mail/mailer.js';
+import { parseEmailList } from '../../utils/email-list.js';
 import { getWaybillById } from './harvest.service.js';
 import { buildWaybillDocx } from './waybill-docx.service.js';
 
 const REASON_MESSAGES = {
   smtp_not_configured:
     'Почта не настроена на сервере (задайте SMTP_HOST и SMTP_FROM в backend/.env или Variables на хостинге).',
-  no_recipients: 'У путевого листа не указан e-mail водителя.',
+  no_recipients:
+    'Укажите e-mail для уведомлений в путевом листе (можно несколько через запятую) или WAYBILL_NOTIFY_EMAILS на сервере.',
   waybill_not_found: 'Путевой лист не найден.',
   send_failed: 'Не удалось отправить письмо — проверьте настройки SMTP и логи сервера.',
 };
+
+function collectWaybillRecipients(waybill) {
+  const fromWaybill = parseEmailList(waybill.driverEmail);
+  const fromEnv = parseEmailList(process.env.WAYBILL_NOTIFY_EMAILS);
+  return [...new Set([...fromWaybill, ...fromEnv])];
+}
 
 export async function listDriverContacts() {
   const result = await query(`
@@ -58,9 +66,9 @@ export async function sendWaybillEmail(waybillId) {
     };
   }
 
-  const driverEmail = waybill.driverEmail?.trim();
+  const recipients = collectWaybillRecipients(waybill);
 
-  if (!driverEmail) {
+  if (recipients.length === 0) {
     return {
       sent: false,
       reason: 'no_recipients',
@@ -76,7 +84,7 @@ export async function sendWaybillEmail(waybillId) {
       : 'не указана';
 
     const mailResult = await sendMail({
-      to: [driverEmail],
+      to: recipients,
       subject: `Путевой лист ${documentNumber}`,
       text: [
         `Здравствуйте, ${waybill.driverName || 'водитель'}!`,
@@ -109,7 +117,7 @@ export async function sendWaybillEmail(waybillId) {
     return {
       sent: true,
       recipients: mailResult.recipients,
-      message: `Путевой лист отправлен на ${driverEmail}.`,
+      message: `Путевой лист отправлен на: ${recipients.join(', ')}.`,
     };
   } catch (error) {
     console.error('[waybill-email] Ошибка отправки путевого листа:', error);
@@ -134,7 +142,7 @@ export async function getSmtpStatus() {
   return {
     configured: isSmtpConfigured(),
     message: isSmtpConfigured()
-      ? 'SMTP настроен — путевые листы можно отправлять на e-mail водителя.'
+      ? 'SMTP настроен — путевой лист можно отправить на один или несколько e-mail (через запятую).'
       : REASON_MESSAGES.smtp_not_configured,
   };
 }

@@ -50,7 +50,7 @@ export async function buildWaybillDocx(w) {
     new Paragraph({ text: '' }),
     new Paragraph({ text: 'Экипаж и техника', heading: HeadingLevel.HEADING_2 }),
     line('Водитель', w.driverName),
-    line('E-mail водителя', w.driverEmail),
+    line('E-mail для уведомлений', w.driverEmail),
     line('Механизатор', w.mechanizatorName),
     line('Трактор', w.tractorModel),
     line('Орудие', w.equipmentName),
