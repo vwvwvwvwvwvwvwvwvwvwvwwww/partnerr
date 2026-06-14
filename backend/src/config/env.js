@@ -209,8 +209,17 @@ function applyAppOriginFromRender() {
 
 applyAppOriginFromRender();
 
+function isOnRailway() {
+  return Boolean(
+    process.env.RAILWAY_ENVIRONMENT?.trim() ||
+      process.env.RAILWAY_PROJECT_ID?.trim() ||
+      process.env.RAILWAY_SERVICE_ID?.trim(),
+  );
+}
+
 /** Скрипт миграций не использует JWT; в pre-deploy (Railway и др.) JWT_SECRET часто не задан — не блокируем migrate. */
 const MIGRATE_JWT_PLACEHOLDER = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
+const RAILWAY_JWT_FALLBACK = 'partnerr-railway-auto-jwt-set-JWT_SECRET-in-variables';
 
 function isMigrateCli() {
   const p = (process.argv[1] ?? '').replace(/\\/g, '/');
@@ -223,6 +232,37 @@ const isMigrateContext =
 if (isMigrateContext && (!process.env.JWT_SECRET || String(process.env.JWT_SECRET).length < 32)) {
   process.env.JWT_SECRET = MIGRATE_JWT_PLACEHOLDER;
 }
+
+/** Railway: /tmp для SQLite (всегда доступен на запись), автo-JWT если Variables пусты. */
+function applyRailwayDefaults() {
+  if (!isOnRailway()) {
+    return;
+  }
+
+  if (!process.env.SQLITE_PATH?.trim()) {
+    process.env.SQLITE_PATH = '/tmp/agro_erp.sqlite';
+  }
+
+  if (process.env.DB_DRIVER?.trim() !== 'postgres') {
+    process.env.DB_DRIVER = 'sqlite';
+  }
+
+  if (
+    !isMigrateContext &&
+    (!process.env.JWT_SECRET || String(process.env.JWT_SECRET).length < 32)
+  ) {
+    process.env.JWT_SECRET = RAILWAY_JWT_FALLBACK;
+    // eslint-disable-next-line no-console
+    console.warn(
+      'Railway: JWT_SECRET не задан в Variables — используется временный ключ. Задайте JWT_SECRET ≥ 32 символов.',
+    );
+  }
+
+  // eslint-disable-next-line no-console
+  console.log('Railway: DB_DRIVER=%s SQLITE_PATH=%s PORT=%s', process.env.DB_DRIVER, process.env.SQLITE_PATH, process.env.PORT ?? '(default)');
+}
+
+applyRailwayDefaults();
 
 const envSchema = z
   .object({

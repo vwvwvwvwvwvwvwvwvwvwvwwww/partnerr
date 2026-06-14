@@ -46,12 +46,13 @@ npm run seed-finance --prefix backend
 2. `https://…/api/health` → `{"status":"ok"}`
 3. Вход: `admin` / ваш пароль
 
-## 4.1. Healthcheck failure / 502
+## 4.1. Healthcheck failure / 502 / crashed
 
-1. **Deploy Logs** → `[railway-start] JWT_SECRET не задан` — добавьте переменную (≥ 32 символов).
-2. Или `migrate завершился с кодом` — проверьте `DB_DRIVER=sqlite`, права на запись в `backend/data/`.
-3. Уберите Reference `DATABASE_URL` от Postgres, если добавляли.
-4. После правок — **Redeploy**.
+1. **Deploy Logs** — ищите `Railway: DB_DRIVER=` (старт пошёл) и `ERP backend слушает порт`.
+2. Если `migrate exit` — проверьте `DB_DRIVER=sqlite`, уберите Reference `DATABASE_URL` от Postgres.
+3. **JWT_SECRET** — желательно задать в Variables (≥ 32 символов). Без него на Railway используется временный ключ (сессии сбросятся при redeploy).
+4. SQLite на Railway по умолчанию: `/tmp/agro_erp.sqlite` (не нужен Postgres).
+5. После правок — **Redeploy**.
 
 ## 5. PostgreSQL (опционально)
 
