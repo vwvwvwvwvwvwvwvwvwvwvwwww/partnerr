@@ -136,8 +136,10 @@ export const warehouseApi = {
 export const harvestApi = {
   list: () => apiGet('/harvest'),
   listDrivers: () => apiGet('/harvest/drivers'),
+  emailStatus: () => apiGet('/harvest/email-status'),
   create: (payload) => apiPost('/harvest', payload),
   update: (id, payload) => apiPut(`/harvest/${id}`, payload),
+  sendEmail: (id) => apiPost(`/harvest/${id}/send-email`, {}),
 };
 
 export const financeApi = {

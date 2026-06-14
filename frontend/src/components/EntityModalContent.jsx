@@ -93,6 +93,7 @@ export default function EntityModalContent({
   saveLabel = 'Сохранить изменения',
   editLabel = 'Изменить данные',
   readOnly = false,
+  renderViewActions,
 }) {
   const [isEditing, setIsEditing] = useState(false);
   const [form, setForm] = useState(initialValues);
@@ -182,6 +183,7 @@ export default function EntityModalContent({
         </dl>
 
         <div className="button-row">
+          {renderViewActions ? renderViewActions(row) : null}
           {!readOnly ? (
             <button className="button" onClick={() => setIsEditing(true)} type="button">
               {editLabel}

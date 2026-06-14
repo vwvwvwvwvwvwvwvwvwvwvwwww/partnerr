@@ -161,6 +161,14 @@ function calculateDurationHours(start, end) {
   return diffMinutes / 60;
 }
 
+function formatEmailFeedback(email) {
+  if (!email?.message) {
+    return '';
+  }
+
+  return email.sent ? email.message : `E-mail: ${email.message}`;
+}
+
 export default function HarvestPage({ user }) {
   const canEditHarvest = user && ['admin', 'agronomist', 'storekeeper'].includes(user.role);
   const [rows, setRows] = useState([]);
@@ -170,6 +178,8 @@ export default function HarvestPage({ user }) {
   const [form, setForm] = useState(initialForm);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [smtpStatus, setSmtpStatus] = useState(null);
+  const [sendingEmailId, setSendingEmailId] = useState(null);
   const editFields = useMemo(
     () => [
       { name: 'documentNumber', label: 'Номер путевого листа', required: true, minLength: 2 },
@@ -280,11 +290,12 @@ export default function HarvestPage({ user }) {
     async function loadPageData() {
       const errors = [];
 
-      const [waybillsResult, driversResult, fieldsResult, cropsResult] = await Promise.allSettled([
+      const [waybillsResult, driversResult, fieldsResult, cropsResult, smtpResult] = await Promise.allSettled([
         harvestApi.list(),
         harvestApi.listDrivers(),
         fieldsApi.list(),
         cropsApi.list(),
+        harvestApi.emailStatus(),
       ]);
 
       if (!isActive) {
@@ -313,6 +324,10 @@ export default function HarvestPage({ user }) {
         errors.push(cropsResult.reason?.message ?? 'Не удалось загрузить культуры');
       }
 
+      if (smtpResult.status === 'fulfilled') {
+        setSmtpStatus(smtpResult.value.data ?? null);
+      }
+
       setError(errors.length > 0 ? errors.join('. ') : '');
     }
 
@@ -326,6 +341,27 @@ export default function HarvestPage({ user }) {
   async function reload() {
     const response = await harvestApi.list();
     setRows(response.data);
+  }
+
+  async function handleSendWaybillEmail(row) {
+    setError('');
+    setSuccess('');
+    setSendingEmailId(row.id);
+
+    try {
+      const response = await harvestApi.sendEmail(row.id);
+      const email = response.email ?? response;
+
+      if (email.sent) {
+        setSuccess(email.message ?? 'Путевой лист отправлен на e-mail');
+      } else {
+        setError(email.message ?? 'Не удалось отправить путевой лист на e-mail');
+      }
+    } catch (apiError) {
+      setError(apiError.message ?? 'Не удалось отправить путевой лист на e-mail');
+    } finally {
+      setSendingEmailId(null);
+    }
   }
 
   async function handleSubmit(event) {
@@ -380,11 +416,9 @@ export default function HarvestPage({ user }) {
       });
 
       setForm(initialForm);
-      const emailNote = response.email?.message;
+      const emailNote = formatEmailFeedback(response.email);
       setSuccess(
-        emailNote
-          ? `Путевой лист сохранён. ${emailNote}`
-          : 'Путевой лист сохранён',
+        emailNote ? `Путевой лист сохранён. ${emailNote}` : 'Путевой лист сохранён',
       );
       await reload();
     } catch (apiError) {
@@ -482,6 +516,14 @@ export default function HarvestPage({ user }) {
           <div className="section-header">
             <div>
               <h2>Новый путевой лист</h2>
+              <p className="section-header__hint">
+                После сохранения DOCX отправляется на e-mail водителя (если указан и настроен SMTP на сервере).
+              </p>
+              {smtpStatus && !smtpStatus.configured ? (
+                <p className="section-header__hint field__error" style={{ marginTop: '0.5rem' }}>
+                  {smtpStatus.message}
+                </p>
+              ) : null}
             </div>
           </div>
 
@@ -723,6 +765,20 @@ export default function HarvestPage({ user }) {
               detailsFields={detailsFields}
               formFields={editFields}
               readOnly={!canEditHarvest}
+              renderViewActions={
+                canEditHarvest
+                  ? () => (
+                      <button
+                        className="button button--secondary"
+                        disabled={!row.driverEmail || sendingEmailId === row.id}
+                        onClick={() => handleSendWaybillEmail(row)}
+                        type="button"
+                      >
+                        {sendingEmailId === row.id ? 'Отправка…' : 'Отправить на e-mail'}
+                      </button>
+                    )
+                  : undefined
+              }
               initialValues={{
                 documentNumber: row.documentNumber ?? '',
                 shiftNumber: row.shiftNumber ?? '',

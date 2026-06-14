@@ -39,13 +39,18 @@ export async function sendMail(options) {
     return { sent: false, reason: 'no_recipients' };
   }
 
-  await transport.sendMail({
-    from: env.SMTP_FROM,
-    to: to.join(', '),
-    subject: options.subject,
-    text: options.text,
-    attachments: options.attachments,
-  });
+  try {
+    await transport.sendMail({
+      from: env.SMTP_FROM,
+      to: to.join(', '),
+      subject: options.subject,
+      text: options.text,
+      attachments: options.attachments,
+    });
 
-  return { sent: true, recipients: to };
+    return { sent: true, recipients: to };
+  } catch (error) {
+    console.error('[mailer] sendMail failed:', error);
+    return { sent: false, reason: 'send_failed', error };
+  }
 }
