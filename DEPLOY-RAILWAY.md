@@ -16,6 +16,7 @@
 | `DB_DRIVER` | да | `sqlite` |
 | `SQLITE_PATH` | нет | `./data/agro_erp.sqlite` (по умолчанию) |
 | `JWT_SECRET` | да | ≥ **32** символов |
+| `ADMIN_PASSWORD` | нет | Пароль admin при первом запуске (по умолчанию `Admin12345Secure!`) |
 | `NODE_ENV` | да | `production` |
 | `VITE_API_URL` | да | `/api` (для сборки фронта) |
 | `APP_ORIGIN` | нет | Если не задать, подставится `https://` + `RAILWAY_PUBLIC_DOMAIN` |
@@ -31,7 +32,9 @@
 
 `PORT` задаёт Railway — backend его читает.
 
-После первого деплоя в [Shell](https://docs.railway.com/guides/cli#shell):
+**Первый вход:** при пустой базе на старте автоматически создаётся `admin` с паролем из `ADMIN_PASSWORD` или **`Admin12345Secure!`**.
+
+После первого деплоя в [Shell](https://docs.railway.com/guides/cli#shell) (если нужно пересоздать вручную):
 
 ```bash
 ADMIN_USERNAME=admin ADMIN_PASSWORD='ВашНадёжныйПароль' ADMIN_FULL_NAME='Администратор' npm run create-admin --prefix backend

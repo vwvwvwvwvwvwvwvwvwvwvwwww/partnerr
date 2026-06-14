@@ -221,13 +221,24 @@ function isOnRailway() {
 const MIGRATE_JWT_PLACEHOLDER = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
 const RAILWAY_JWT_FALLBACK = 'partnerr-railway-auto-jwt-set-JWT_SECRET-in-variables';
 
-function isMigrateCli() {
+function isMaintenanceCli() {
   const p = (process.argv[1] ?? '').replace(/\\/g, '/');
-  return p.endsWith('src/scripts/migrate.js') || p.endsWith('/scripts/migrate.js');
+  return (
+    p.endsWith('src/scripts/migrate.js') ||
+    p.endsWith('/scripts/migrate.js') ||
+    p.endsWith('ensure-railway-data.js') ||
+    p.endsWith('create-admin.js') ||
+    p.endsWith('seed-staff-accounts.js') ||
+    p.endsWith('seed-sqlite-demo.js') ||
+    p.endsWith('seed-finance.js') ||
+    p.endsWith('seed-warehouse.js') ||
+    p.endsWith('seed-waybills.js') ||
+    p.endsWith('seed-tech-cards.js')
+  );
 }
 
 const isMigrateContext =
-  process.env.AGRO_ERP_MIGRATE_SCRIPT === '1' || isMigrateCli();
+  process.env.AGRO_ERP_MIGRATE_SCRIPT === '1' || isMaintenanceCli();
 
 if (isMigrateContext && (!process.env.JWT_SECRET || String(process.env.JWT_SECRET).length < 32)) {
   process.env.JWT_SECRET = MIGRATE_JWT_PLACEHOLDER;

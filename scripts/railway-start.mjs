@@ -36,6 +36,19 @@ if (migrate.status !== 0) {
   process.exit(migrate.status ?? 1);
 }
 
+log('первичные пользователи и демо-данные (если БД пустая)…');
+const bootstrap = spawnSync('node', ['src/scripts/ensure-railway-data.js'], {
+  cwd: backendDir,
+  stdio: 'inherit',
+  env: process.env,
+});
+
+if (bootstrap.status !== 0) {
+  // eslint-disable-next-line no-console
+  console.error(`[railway-start] ensure-railway-data exit ${bootstrap.status ?? 1}`);
+  process.exit(bootstrap.status ?? 1);
+}
+
 log('запуск server.js…');
 process.chdir(backendDir);
 await import(path.join(backendDir, 'src/server.js'));
