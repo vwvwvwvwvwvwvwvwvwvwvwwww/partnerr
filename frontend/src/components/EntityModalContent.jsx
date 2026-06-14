@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import AlertMessage from './AlertMessage';
 import { fileToDataUrl } from '../utils/image';
 import { validateForm } from '../utils/validation';
 
@@ -216,7 +217,7 @@ export default function EntityModalContent({
         ))}
       </div>
 
-      {error ? <div className="alert alert--error">{error}</div> : null}
+      <AlertMessage variant="error">{error}</AlertMessage>
 
       <div className="button-row">
         <button className="button" disabled={isSubmitting} type="submit">

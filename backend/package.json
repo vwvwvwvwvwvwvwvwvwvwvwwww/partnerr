@@ -8,10 +8,16 @@
     "start": "node src/server.js",
     "migrate": "node src/scripts/migrate.js",
     "create-admin": "node src/scripts/create-admin.js",
-    "seed-staff": "node src/scripts/seed-staff-accounts.js"
+    "seed-staff": "node src/scripts/seed-staff-accounts.js",
+    "seed-tech-cards": "node src/scripts/seed-tech-cards.js",
+    "seed-finance": "node src/scripts/seed-finance.js",
+    "seed-waybills": "node src/scripts/seed-waybills.js",
+    "seed-warehouse": "node src/scripts/seed-warehouse.js",
+    "seed-sqlite-demo": "node src/scripts/seed-sqlite-demo.js"
   },
   "dependencies": {
     "argon2": "^0.44.0",
+    "better-sqlite3": "^12.10.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
     "docx": "^9.5.0",
@@ -20,6 +26,7 @@
     "express-rate-limit": "^8.3.2",
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.3",
+    "nodemailer": "^6.10.1",
     "pg": "^8.20.0",
     "zod": "^4.3.6"
   }

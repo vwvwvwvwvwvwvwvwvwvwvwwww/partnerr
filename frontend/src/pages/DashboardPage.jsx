@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { dashboardApi } from '../api/client';
+import PageStack from '../components/PageStack';
 import StatCard from '../components/StatCard';
 
 export default function DashboardPage() {
@@ -13,9 +14,7 @@ export default function DashboardPage() {
   }, []);
 
   return (
-    <div className="page-stack">
-      {error ? <div className="alert alert--error">{error}</div> : null}
-
+    <PageStack error={error}>
       <section className="stats-grid">
         <StatCard title="Поля" value={summary ? summary.fieldsCount : '...'} />
         <StatCard title="Площадь" value={summary ? `${summary.totalAreaHa} га` : '...'} />
@@ -25,6 +24,6 @@ export default function DashboardPage() {
         <StatCard title="Склад" value={summary ? summary.warehouseItemsCount : '...'} />
         <StatCard title="Баланс" value={summary ? `${summary.financeBalance} руб.` : '...'} />
       </section>
-    </div>
+    </PageStack>
   );
 }

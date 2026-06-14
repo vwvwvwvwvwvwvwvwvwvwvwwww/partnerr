@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { cropsApi } from '../api/client';
 import DataTable from '../components/DataTable';
+import PageStack from '../components/PageStack';
 import EntityModalContent from '../components/EntityModalContent';
 import StatCard from '../components/StatCard';
 import { validateForm } from '../utils/validation';
@@ -224,16 +225,13 @@ export default function CropsPage({ user }) {
   }
 
   return (
-    <div className="page-stack">
+    <PageStack error={error} success={success}>
       <section className="page-header">
         <div>
           <span className="eyebrow">Культуры</span>
           <h2>Культуры</h2>
         </div>
       </section>
-
-      {error ? <div className="alert alert--error">{error}</div> : null}
-      {success ? <div className="alert alert--success">{success}</div> : null}
 
       <section className="stats-grid">
         <StatCard
@@ -418,6 +416,6 @@ export default function CropsPage({ user }) {
           rows={rows}
         />
       </section>
-    </div>
+    </PageStack>
   );
 }

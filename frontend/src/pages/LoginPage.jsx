@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import AlertMessage from '../components/AlertMessage';
 import BrandLogo from '../components/BrandLogo';
 import { validateForm } from '../utils/validation';
 
@@ -69,7 +70,7 @@ export default function LoginPage({ onLogin }) {
           />
         </label>
 
-        {error ? <div className="alert alert--error">{error}</div> : null}
+        <AlertMessage variant="error">{error}</AlertMessage>
 
         <button className="button" disabled={isSubmitting} type="submit">
           {isSubmitting ? 'Проверка...' : 'Войти'}

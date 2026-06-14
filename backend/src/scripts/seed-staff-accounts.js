@@ -84,6 +84,24 @@ const staff = [
     phone: '+7 (3532) 44-44-02',
     hiredAt: '2019-09-23',
   },
+  {
+    username: 'voditel1',
+    fullName: 'Иванов Пётр Сергеевич',
+    role: 'driver',
+    email: 'voditel1@example.com',
+    position: 'Водитель (зерновоз)',
+    phone: '+7 (3532) 44-55-01',
+    hiredAt: '2019-04-10',
+  },
+  {
+    username: 'voditel2',
+    fullName: 'Кузнецов Андрей Николаевич',
+    role: 'driver',
+    email: 'voditel2@example.com',
+    position: 'Водитель (трактор-тягач)',
+    phone: '+7 (3532) 44-55-02',
+    hiredAt: '2020-07-22',
+  },
 ];
 
 async function seedStaff() {
@@ -98,17 +116,19 @@ async function seedStaff() {
       password_hash,
       full_name,
       role,
+      email,
       position,
       phone,
       hired_at,
       photo_url
     )
-    VALUES ($1, $2, $3, $4, $5, $6, $7, NULL)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NULL)
     ON CONFLICT (username)
     DO UPDATE SET
       password_hash = EXCLUDED.password_hash,
       full_name = EXCLUDED.full_name,
       role = EXCLUDED.role,
+      email = EXCLUDED.email,
       position = EXCLUDED.position,
       phone = EXCLUDED.phone,
       hired_at = EXCLUDED.hired_at,
@@ -127,6 +147,7 @@ async function seedStaff() {
         passwordHash,
         row.fullName,
         row.role,
+        row.email ?? null,
         row.position,
         row.phone,
         row.hiredAt,

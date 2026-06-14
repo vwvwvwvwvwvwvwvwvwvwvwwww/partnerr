@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { employeesApi } from '../api/client';
 import DataTable from '../components/DataTable';
+import PageStack from '../components/PageStack';
 import EmployeePhotoPreview from '../components/EmployeePhotoPreview';
 import EntityModalContent from '../components/EntityModalContent';
 import { validateForm } from '../utils/validation';
@@ -21,7 +22,7 @@ const columns = [
   },
   { key: 'fullName', title: 'ФИО' },
   { key: 'username', title: 'Логин' },
-  { key: 'role', title: 'Роль' },
+  { key: 'role', title: 'Роль в системе' },
   { key: 'position', title: 'Должность' },
   { key: 'phone', title: 'Телефон' },
   {
@@ -37,6 +38,7 @@ const roleLabels = {
   storekeeper: 'Кладовщик',
   accountant: 'Бухгалтер',
   admin: 'Администратор',
+  driver: 'Водитель',
 };
 
 function formatDate(value) {
@@ -76,10 +78,11 @@ const detailsFields = [
   { key: 'username', label: 'Логин' },
   {
     key: 'role',
-    label: 'Роль',
+    label: 'Роль в системе',
     render: (value) => roleLabels[value] ?? value,
   },
   { key: 'position', label: 'Должность' },
+  { key: 'email', label: 'E-mail' },
   { key: 'phone', label: 'Телефон' },
   {
     key: 'hiredAt',
@@ -126,12 +129,13 @@ const editFields = [
   },
   {
     name: 'role',
-    label: 'Роль',
+    label: 'Роль в системе',
     type: 'select',
     required: true,
     options: Object.entries(roleLabels).map(([value, label]) => ({ value, label })),
   },
   { name: 'position', label: 'Должность' },
+  { name: 'email', label: 'E-mail', type: 'email' },
   {
     name: 'phone',
     label: 'Телефон',
@@ -155,7 +159,8 @@ const createFields = [
   { name: 'fullName', label: 'ФИО', required: true, minLength: 3 },
   { name: 'username', label: 'Логин', required: true, minLength: 3 },
   { name: 'password', label: 'Пароль', required: true, minLength: 10 },
-  { name: 'role', label: 'Роль', required: true, type: 'select' },
+  { name: 'role', label: 'Роль в системе', required: true, type: 'select' },
+  { name: 'email', label: 'E-mail (для путевых листов)', type: 'email' },
   {
     name: 'phone',
     label: 'Телефон',
@@ -171,6 +176,7 @@ const initialForm = {
   fullName: '',
   photoUrl: '',
   role: 'agronomist',
+  email: '',
   position: '',
   phone: '',
   hiredAt: '',
@@ -247,6 +253,7 @@ export default function EmployeesPage({ user }) {
       password: values.password || null,
       fullName: values.fullName,
       role: values.role,
+      email: values.email?.trim() || null,
       position: values.position || null,
       phone: values.phone || null,
       hiredAt: values.hiredAt || null,
@@ -260,29 +267,25 @@ export default function EmployeesPage({ user }) {
 
   if (user.role !== 'admin') {
     return (
-      <div className="page-stack">
+      <PageStack error="У вашей учетной записи нет прав на управление сотрудниками.">
         <section className="page-header">
           <div>
             <span className="eyebrow">Сотрудники</span>
             <h2>Сотрудники</h2>
           </div>
         </section>
-        <div className="alert alert--error">У вашей учетной записи нет прав на управление сотрудниками.</div>
-      </div>
+      </PageStack>
     );
   }
 
   return (
-    <div className="page-stack">
+    <PageStack error={error} success={success}>
       <section className="page-header">
         <div>
           <span className="eyebrow">Сотрудники</span>
           <h2>Сотрудники</h2>
         </div>
       </section>
-
-      {error ? <div className="alert alert--error">{error}</div> : null}
-      {success ? <div className="alert alert--success">{success}</div> : null}
 
       <section className="content-grid">
         <form className="card form-card" onSubmit={handleSubmit}>
@@ -309,14 +312,24 @@ export default function EmployeesPage({ user }) {
             </label>
 
             <label className="field">
-              <span>Роль</span>
+              <span>Роль в системе</span>
               <select value={form.role} onChange={(event) => setForm((prev) => ({ ...prev, role: event.target.value }))}>
                 <option value="agronomist">Агроном</option>
                 <option value="mechanic">Механик</option>
                 <option value="storekeeper">Кладовщик</option>
                 <option value="accountant">Бухгалтер</option>
                 <option value="admin">Администратор</option>
+                <option value="driver">Водитель</option>
               </select>
+            </label>
+
+            <label className="field">
+              <span>E-mail</span>
+              <input
+                type="email"
+                value={form.email}
+                onChange={(event) => setForm((prev) => ({ ...prev, email: event.target.value }))}
+              />
             </label>
 
             <label className="field">
@@ -366,6 +379,7 @@ export default function EmployeesPage({ user }) {
                 username: row.username ?? '',
                 password: '',
                 role: row.role ?? 'agronomist',
+                email: row.email ?? '',
                 position: row.position ?? '',
                 phone: row.phone ?? '',
                 hiredAt: normalizeDateInput(row.hiredAt),
@@ -382,6 +396,6 @@ export default function EmployeesPage({ user }) {
           rows={rows}
         />
       </section>
-    </div>
+    </PageStack>
   );
 }

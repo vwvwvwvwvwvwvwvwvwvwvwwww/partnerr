@@ -8,6 +8,7 @@ const adminSchema = z.object({
   ADMIN_FULL_NAME: z.string().trim().min(3).max(150).default('Системный администратор'),
 });
 
+
 async function createAdmin() {
   const env = adminSchema.parse(process.env);
   const passwordHash = await argon2.hash(env.ADMIN_PASSWORD, {

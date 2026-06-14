@@ -1,4 +1,13 @@
 import { query } from '../../db/pool.js';
+import { isSqlite } from '../../db/dialect.js';
+
+function timeColumn(column, alias) {
+  if (isSqlite) {
+    return `${column} AS "${alias}"`;
+  }
+
+  return `TO_CHAR(${column}, 'HH24:MI') AS "${alias}"`;
+}
 
 export async function listWaybills() {
   const result = await query(`
@@ -13,14 +22,15 @@ export async function listWaybills() {
       hw.action_type AS "actionType",
       hw.seed_type AS "seedType",
       hw.driver_name AS "driverName",
+      hw.driver_email AS "driverEmail",
       hw.mechanizator_name AS "mechanizatorName",
       hw.vehicle_number AS "vehicleNumber",
       hw.trailer_number AS "trailerNumber",
       hw.tractor_model AS "tractorModel",
       hw.equipment_name AS "equipmentName",
       hw.trip_date AS "tripDate",
-      TO_CHAR(hw.departure_time, 'HH24:MI') AS "departureTime",
-      TO_CHAR(hw.return_time, 'HH24:MI') AS "returnTime",
+      ${timeColumn('hw.departure_time', 'departureTime')},
+      ${timeColumn('hw.return_time', 'returnTime')},
       hw.work_volume_ha AS "workVolumeHa",
       hw.route_distance_km AS "routeDistanceKm",
       hw.start_odometer_km AS "startOdometerKm",
@@ -55,6 +65,67 @@ export async function listWaybills() {
   return result.rows;
 }
 
+const waybillSelectSql = `
+  SELECT
+    hw.id,
+    hw.field_id AS "fieldId",
+    hw.crop_id AS "cropId",
+    f.name AS "fieldName",
+    COALESCE(c.name, hw.seed_type) AS "cropName",
+    hw.document_number AS "documentNumber",
+    hw.shift_number AS "shiftNumber",
+    hw.action_type AS "actionType",
+    hw.seed_type AS "seedType",
+    hw.driver_name AS "driverName",
+    hw.driver_email AS "driverEmail",
+    hw.mechanizator_name AS "mechanizatorName",
+    hw.vehicle_number AS "vehicleNumber",
+    hw.trailer_number AS "trailerNumber",
+    hw.tractor_model AS "tractorModel",
+    hw.equipment_name AS "equipmentName",
+    hw.trip_date AS "tripDate",
+    ${timeColumn('hw.departure_time', 'departureTime')},
+    ${timeColumn('hw.return_time', 'returnTime')},
+    hw.work_volume_ha AS "workVolumeHa",
+    hw.route_distance_km AS "routeDistanceKm",
+    hw.start_odometer_km AS "startOdometerKm",
+    hw.end_odometer_km AS "endOdometerKm",
+    hw.start_engine_hours AS "startEngineHours",
+    hw.end_engine_hours AS "endEngineHours",
+    hw.gross_weight_kg AS "grossWeightKg",
+    hw.tare_weight_kg AS "tareWeightKg",
+    CASE
+      WHEN hw.gross_weight_kg IS NOT NULL AND hw.tare_weight_kg IS NOT NULL
+        THEN hw.gross_weight_kg - hw.tare_weight_kg
+      ELSE NULL
+    END AS "netWeightKg",
+    hw.fuel_issued_liters AS "fuelIssuedLiters",
+    hw.fuel_start_liters AS "fuelStartLiters",
+    hw.fuel_end_liters AS "fuelEndLiters",
+    hw.fuel_actual_liters AS "fuelActualLiters",
+    hw.destination,
+    hw.receiver_name AS "receiverName",
+    hw.weather_conditions AS "weatherConditions",
+    hw.route_description AS "routeDescription",
+    hw.responsible_person AS "responsiblePerson",
+    hw.notes,
+    hw.ticket_photo_url AS "ticketPhotoUrl",
+    hw.created_at AS "createdAt"
+  FROM harvest_waybills hw
+  JOIN fields f ON f.id = hw.field_id
+  LEFT JOIN crops c ON c.id = hw.crop_id
+`;
+
+export async function getWaybillById(id) {
+  const result = await query({
+    name: 'harvest-get-waybill-by-id',
+    text: `${waybillSelectSql} WHERE hw.id = $1`,
+    values: [id],
+  });
+
+  return result.rows[0] ?? null;
+}
+
 export async function createWaybill(data) {
   const result = await query({
     name: 'harvest-create-waybill',
@@ -67,6 +138,7 @@ export async function createWaybill(data) {
         action_type,
         seed_type,
         driver_name,
+        driver_email,
         mechanizator_name,
         vehicle_number,
         trailer_number,
@@ -95,7 +167,7 @@ export async function createWaybill(data) {
         notes,
         ticket_photo_url
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35)
       RETURNING
         id,
         field_id AS "fieldId",
@@ -105,14 +177,15 @@ export async function createWaybill(data) {
         action_type AS "actionType",
         seed_type AS "seedType",
         driver_name AS "driverName",
+        driver_email AS "driverEmail",
         mechanizator_name AS "mechanizatorName",
         vehicle_number AS "vehicleNumber",
         trailer_number AS "trailerNumber",
         tractor_model AS "tractorModel",
         equipment_name AS "equipmentName",
         trip_date AS "tripDate",
-        TO_CHAR(departure_time, 'HH24:MI') AS "departureTime",
-        TO_CHAR(return_time, 'HH24:MI') AS "returnTime",
+        ${timeColumn('departure_time', 'departureTime')},
+        ${timeColumn('return_time', 'returnTime')},
         work_volume_ha AS "workVolumeHa",
         route_distance_km AS "routeDistanceKm",
         start_odometer_km AS "startOdometerKm",
@@ -142,6 +215,7 @@ export async function createWaybill(data) {
       data.actionType,
       data.seedType,
       data.driverName,
+      data.driverEmail ?? null,
       data.mechanizatorName ?? null,
       data.vehicleNumber,
       data.trailerNumber ?? null,
@@ -188,33 +262,34 @@ export async function updateWaybill(id, data) {
         action_type = $6,
         seed_type = $7,
         driver_name = $8,
-        mechanizator_name = $9,
-        vehicle_number = $10,
-        trailer_number = $11,
-        tractor_model = $12,
-        equipment_name = $13,
-        trip_date = $14,
-        departure_time = $15,
-        return_time = $16,
-        work_volume_ha = $17,
-        route_distance_km = $18,
-        start_odometer_km = $19,
-        end_odometer_km = $20,
-        start_engine_hours = $21,
-        end_engine_hours = $22,
-        gross_weight_kg = $23,
-        tare_weight_kg = $24,
-        fuel_issued_liters = $25,
-        fuel_start_liters = $26,
-        fuel_end_liters = $27,
-        fuel_actual_liters = $28,
-        destination = $29,
-        receiver_name = $30,
-        weather_conditions = $31,
-        route_description = $32,
-        responsible_person = $33,
-        notes = $34,
-        ticket_photo_url = $35
+        driver_email = $9,
+        mechanizator_name = $10,
+        vehicle_number = $11,
+        trailer_number = $12,
+        tractor_model = $13,
+        equipment_name = $14,
+        trip_date = $15,
+        departure_time = $16,
+        return_time = $17,
+        work_volume_ha = $18,
+        route_distance_km = $19,
+        start_odometer_km = $20,
+        end_odometer_km = $21,
+        start_engine_hours = $22,
+        end_engine_hours = $23,
+        gross_weight_kg = $24,
+        tare_weight_kg = $25,
+        fuel_issued_liters = $26,
+        fuel_start_liters = $27,
+        fuel_end_liters = $28,
+        fuel_actual_liters = $29,
+        destination = $30,
+        receiver_name = $31,
+        weather_conditions = $32,
+        route_description = $33,
+        responsible_person = $34,
+        notes = $35,
+        ticket_photo_url = $36
       WHERE id = $1
       RETURNING
         id,
@@ -225,14 +300,15 @@ export async function updateWaybill(id, data) {
         action_type AS "actionType",
         seed_type AS "seedType",
         driver_name AS "driverName",
+        driver_email AS "driverEmail",
         mechanizator_name AS "mechanizatorName",
         vehicle_number AS "vehicleNumber",
         trailer_number AS "trailerNumber",
         tractor_model AS "tractorModel",
         equipment_name AS "equipmentName",
         trip_date AS "tripDate",
-        TO_CHAR(departure_time, 'HH24:MI') AS "departureTime",
-        TO_CHAR(return_time, 'HH24:MI') AS "returnTime",
+        ${timeColumn('departure_time', 'departureTime')},
+        ${timeColumn('return_time', 'returnTime')},
         work_volume_ha AS "workVolumeHa",
         route_distance_km AS "routeDistanceKm",
         start_odometer_km AS "startOdometerKm",
@@ -263,6 +339,7 @@ export async function updateWaybill(id, data) {
       data.actionType,
       data.seedType,
       data.driverName,
+      data.driverEmail ?? null,
       data.mechanizatorName ?? null,
       data.vehicleNumber,
       data.trailerNumber ?? null,

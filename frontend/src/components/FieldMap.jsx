@@ -1,106 +1,115 @@
-import { useEffect } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
-import { MapContainer, Marker, Polygon, Polyline, Popup, TileLayer, Tooltip, useMap, useMapEvents } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import orenburgDistricts from '../data/orenburg-districts.json';
 
+/** Центр Оренбургской области [широта, долгота] — формат Leaflet */
 const ORENBURG_CENTER = [52.35, 55.85];
-const ORENBURG_BOUNDS = [
-  [50.7, 50.8],
-  [55.6, 62.4],
-];
-const WORLD_RING = [
-  [-85, -180],
-  [-85, 180],
-  [85, 180],
-  [85, -180],
-];
-const ORENBURG_DISTRICT_RINGS = orenburgDistricts.features.flatMap((feature) => {
+const ORENBURG_BOUNDS = {
+  southWest: [50.7, 50.8],
+  northEast: [55.6, 62.4],
+};
+
+const DISTRICT_RINGS = orenburgDistricts.features.flatMap((feature) => {
   if (feature.geometry?.type === 'Polygon') {
-    return [feature.geometry.coordinates[0].map(([lng, lat]) => [lat, lng])];
+    return [feature.geometry.coordinates[0]];
   }
 
   if (feature.geometry?.type === 'MultiPolygon') {
-    return feature.geometry.coordinates.map((polygon) => polygon[0].map(([lng, lat]) => [lat, lng]));
+    return feature.geometry.coordinates.map((polygon) => polygon[0]);
   }
 
   return [];
 });
-const OUTSIDE_MASK = [
-  WORLD_RING,
-  ...ORENBURG_DISTRICT_RINGS,
-];
-const draftVertexIcon = L.divIcon({
-  className: 'field-map__vertex-icon',
-  iconSize: [16, 16],
-  iconAnchor: [8, 8],
-});
 
-function toLeafletPositions(geometry) {
+function parseGeometry(geometry) {
   if (!geometry) {
+    return null;
+  }
+
+  if (typeof geometry === 'string') {
+    try {
+      return JSON.parse(geometry);
+    } catch {
+      return null;
+    }
+  }
+
+  return geometry;
+}
+
+/** Кольца поля в GeoJSON [lng, lat][] */
+function getFieldRings(geometry) {
+  const parsed = parseGeometry(geometry);
+
+  if (!parsed) {
     return [];
   }
 
-  if (geometry.type === 'Polygon') {
-    return geometry.coordinates[0].map(([lng, lat]) => [lat, lng]);
+  if (parsed.type === 'Polygon') {
+    const ring = parsed.coordinates[0];
+    return ring?.length >= 3 ? [ring] : [];
   }
 
-  if (geometry.type === 'MultiPolygon') {
-    return geometry.coordinates[0][0].map(([lng, lat]) => [lat, lng]);
+  if (parsed.type === 'MultiPolygon') {
+    return parsed.coordinates
+      .map((polygon) => polygon[0])
+      .filter((ring) => ring?.length >= 3);
   }
 
   return [];
 }
 
-function getFieldStyle(fieldId, selectedFieldId) {
-  if (fieldId === 'preview') {
-    return {
-      color: '#ffce1f',
-      fillColor: '#ffce1f',
-      fillOpacity: 0.16,
-      dashArray: '8 6',
-      weight: 3,
-    };
-  }
-
-  if (fieldId === selectedFieldId) {
-    return {
-      color: '#ffe100',
-      fillColor: '#ffe100',
-      fillOpacity: 0.42,
-      weight: 4,
-    };
-  }
-
-  return {
-    color: '#e66b6b',
-    fillColor: '#ef8a8a',
-    fillOpacity: 0.28,
-    weight: 1.6,
-  };
+function ringToLatLngs(ring) {
+  return ring.map(([lng, lat]) => [lat, lng]);
 }
 
-function isPointInsideBounds(point, bounds) {
-  const [[southLat, westLng], [northLat, eastLng]] = bounds;
+function getFieldBoundsPoints(geometry) {
+  return getFieldRings(geometry).flat();
+}
 
+function closeRing(ring) {
+  if (ring.length < 3) {
+    return ring;
+  }
+
+  const first = ring[0];
+  const last = ring[ring.length - 1];
+
+  if (first[0] === last[0] && first[1] === last[1]) {
+    return ring;
+  }
+
+  return [...ring, first];
+}
+
+function isSameFieldId(left, right) {
+  if (left === null || left === undefined || right === null || right === undefined) {
+    return false;
+  }
+
+  return String(left) === String(right);
+}
+
+function isPointInsideBounds(lng, lat) {
   return (
-    point.lat >= southLat &&
-    point.lat <= northLat &&
-    point.lng >= westLng &&
-    point.lng <= eastLng
+    lng >= ORENBURG_BOUNDS.southWest[1]
+    && lng <= ORENBURG_BOUNDS.northEast[1]
+    && lat >= ORENBURG_BOUNDS.southWest[0]
+    && lat <= ORENBURG_BOUNDS.northEast[0]
   );
 }
 
-function isPointInsidePolygon(point, polygon) {
+function isPointInsideRing(lng, lat, ring) {
   let isInside = false;
 
-  for (let index = 0, previousIndex = polygon.length - 1; index < polygon.length; previousIndex = index, index += 1) {
-    const [currentLat, currentLng] = polygon[index];
-    const [previousLat, previousLng] = polygon[previousIndex];
+  for (let index = 0, previousIndex = ring.length - 1; index < ring.length; previousIndex = index, index += 1) {
+    const [currentLng, currentLat] = ring[index];
+    const [previousLng, previousLat] = ring[previousIndex];
 
     const intersects = (
-      (currentLng > point.lng) !== (previousLng > point.lng) &&
-      point.lat < ((previousLat - currentLat) * (point.lng - currentLng)) / ((previousLng - currentLng) || Number.EPSILON) + currentLat
+      (currentLat > lat) !== (previousLat > lat)
+      && lng < ((previousLng - currentLng) * (lat - currentLat)) / ((previousLat - currentLat) || Number.EPSILON) + currentLng
     );
 
     if (intersects) {
@@ -111,177 +120,311 @@ function isPointInsidePolygon(point, polygon) {
   return isInside;
 }
 
-function DraftEvents({ onAddDraftPoint, allowedBounds, allowedPolygons }) {
-  useMapEvents({
-    click(event) {
-      if (!isPointInsideBounds(event.latlng, allowedBounds)) {
-        return;
-      }
-
-      if (!allowedPolygons.some((polygon) => isPointInsidePolygon(event.latlng, polygon))) {
-        return;
-      }
-
-      onAddDraftPoint({
-        lat: Number(event.latlng.lat.toFixed(6)),
-        lng: Number(event.latlng.lng.toFixed(6)),
-      });
-    },
-  });
-
-  return null;
+function isPointInsideOrenburgDistricts(lng, lat) {
+  return DISTRICT_RINGS.some((ring) => isPointInsideRing(lng, lat, ring));
 }
 
-function MapFocusController({ selectedField }) {
-  const map = useMap();
-  useEffect(() => {
-    if (!selectedField?.geometry) {
-      return;
-    }
+function boundsFromPoints(points) {
+  const latLngs = points.map(([lng, lat]) => [lat, lng]);
 
-    const positions = toLeafletPositions(selectedField.geometry);
+  if (!latLngs.length) {
+    return null;
+  }
 
-    if (!positions.length) {
-      return;
-    }
-
-    map.fitBounds(positions, {
-      padding: [32, 32],
-      maxZoom: 15,
-    });
-  }, [map, selectedField]);
-
-  return null;
+  return L.latLngBounds(latLngs);
 }
 
 export default function FieldMap({
   fields,
   draftPoints = [],
   onAddDraftPoint,
-  onMoveDraftPoint,
   onRemoveDraftPoint,
   onSelectField,
   selectedFieldId,
-  contourMode = 'create',
+  drawingContour = false,
 }) {
-  const selectedField = fields.find((field) => field.id === selectedFieldId);
+  const containerRef = useRef(null);
+  const mapRef = useRef(null);
+  const layersRef = useRef(null);
+  const propsRef = useRef({});
+  const hasFitAllFieldsRef = useRef(false);
+  const prevRegistryCountRef = useRef(0);
+
+  const [mapReady, setMapReady] = useState(false);
+  const [renderedFieldCount, setRenderedFieldCount] = useState(0);
+
+  propsRef.current = {
+    fields,
+    draftPoints,
+    onAddDraftPoint,
+    onRemoveDraftPoint,
+    onSelectField,
+    selectedFieldId,
+    drawingContour,
+  };
+
+  const clearLayers = useCallback(() => {
+    layersRef.current?.clearLayers();
+  }, []);
+
+  const renderLayers = useCallback((map) => {
+    const {
+      fields: fieldList,
+      draftPoints: draft,
+      onAddDraftPoint: onAdd,
+      onSelectField: onSelect,
+      selectedFieldId: selectedId,
+      drawingContour: isDrawingActive,
+      onRemoveDraftPoint: onRemove,
+    } = propsRef.current;
+
+    const isDrawingContour = Boolean(onAdd) && (isDrawingActive || draft.length > 0);
+    const group = layersRef.current;
+
+    if (!group) {
+      return 0;
+    }
+
+    clearLayers();
+
+    for (const ring of DISTRICT_RINGS) {
+      L.polyline(ringToLatLngs(closeRing(ring)), {
+        color: '#355c31',
+        weight: 1,
+        opacity: 0.55,
+        interactive: false,
+      }).addTo(group);
+    }
+
+    let renderedFields = 0;
+
+    for (const field of fieldList) {
+      if (field.id === 'preview') {
+        continue;
+      }
+
+      const rings = getFieldRings(field.geometry);
+
+      for (const ring of rings) {
+        const isSelected = isSameFieldId(field.id, selectedId);
+        const polygon = L.polygon(ringToLatLngs(closeRing(ring)), {
+          color: '#ffffff',
+          weight: isSelected ? 4 : 2,
+          fillColor: isSelected ? '#ffe100' : '#e63946',
+          fillOpacity: 0.67,
+          interactive: !isDrawingContour,
+        }).addTo(group);
+
+        if (!isDrawingContour && onSelect) {
+          polygon.on('click', () => onSelect(field.id));
+        }
+
+        renderedFields += 1;
+      }
+    }
+
+    for (const field of fieldList) {
+      if (field.id !== 'preview') {
+        continue;
+      }
+
+      const rings = getFieldRings(field.geometry);
+
+      for (const ring of rings) {
+        L.polygon(ringToLatLngs(closeRing(ring)), {
+          color: '#ffffff',
+          weight: 3,
+          fillColor: '#ffce1f',
+          fillOpacity: 0.67,
+          interactive: false,
+        }).addTo(group);
+      }
+    }
+
+    if (draft.length >= 2) {
+      L.polyline(
+        draft.map((point) => [point.lat, point.lng]),
+        {
+          color: '#dc2626',
+          weight: 3,
+          dashArray: '8 8',
+        },
+      ).addTo(group);
+    }
+
+    for (let index = 0; index < draft.length; index += 1) {
+      const point = draft[index];
+      const marker = L.marker([point.lat, point.lng], {
+        icon: L.divIcon({
+          className: 'field-map-draft-marker',
+          html: `<span>${index + 1}</span>`,
+          iconSize: [26, 26],
+          iconAnchor: [13, 13],
+        }),
+        interactive: true,
+      }).addTo(group);
+
+      marker.on('click', () => {
+        onRemove?.(index);
+      });
+    }
+
+    return renderedFields;
+  }, [clearLayers]);
+
+  useEffect(() => {
+    if (!containerRef.current || mapRef.current) {
+      return undefined;
+    }
+
+    const map = L.map(containerRef.current, {
+      center: ORENBURG_CENTER,
+      zoom: 8,
+      zoomControl: true,
+    });
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+      maxZoom: 19,
+    }).addTo(map);
+
+    map.attributionControl?.setPrefix(false);
+
+    layersRef.current = L.layerGroup().addTo(map);
+
+    map.on('click', (event) => {
+      const { onAddDraftPoint: onAddPoint } = propsRef.current;
+
+      if (!onAddPoint) {
+        return;
+      }
+
+      const { lat, lng } = event.latlng;
+
+      if (!isPointInsideBounds(lng, lat) || !isPointInsideOrenburgDistricts(lng, lat)) {
+        return;
+      }
+
+      onAddPoint({
+        lat: Number(lat.toFixed(6)),
+        lng: Number(lng.toFixed(6)),
+      });
+    });
+
+    mapRef.current = map;
+    setMapReady(true);
+
+    const count = renderLayers(map);
+    setRenderedFieldCount(count);
+
+    return () => {
+      clearLayers();
+      map.remove();
+      mapRef.current = null;
+      layersRef.current = null;
+      hasFitAllFieldsRef.current = false;
+      prevRegistryCountRef.current = 0;
+      setMapReady(false);
+      setRenderedFieldCount(0);
+    };
+  }, [clearLayers, renderLayers]);
+
+  useEffect(() => {
+    if (!mapReady || !mapRef.current) {
+      return;
+    }
+
+    const map = mapRef.current;
+    const count = renderLayers(map);
+    setRenderedFieldCount(count);
+
+    const {
+      fields: fieldList,
+      selectedFieldId: activeId,
+      draftPoints: draft,
+      onAddDraftPoint: onAdd,
+    } = propsRef.current;
+
+    if (onAdd && draft.length > 0) {
+      return;
+    }
+
+    const registryCount = fieldList.filter((field) => field.id !== 'preview').length;
+
+    if (prevRegistryCountRef.current === 0 && registryCount > 0) {
+      hasFitAllFieldsRef.current = false;
+    }
+
+    prevRegistryCountRef.current = registryCount;
+
+    if (registryCount > 0 && count === 0) {
+      return;
+    }
+
+    const selectedField = fieldList.find((field) => isSameFieldId(field.id, activeId));
+    const selectedPositions = getFieldBoundsPoints(selectedField?.geometry);
+
+    if (selectedPositions.length) {
+      const bounds = boundsFromPoints(selectedPositions);
+
+      if (bounds) {
+        hasFitAllFieldsRef.current = true;
+        map.fitBounds(bounds, { padding: [40, 40], maxZoom: 14 });
+      }
+
+      return;
+    }
+
+    const allPositions = fieldList
+      .filter((field) => field.id !== 'preview')
+      .flatMap((field) => getFieldBoundsPoints(field.geometry));
+
+    if (allPositions.length && !hasFitAllFieldsRef.current) {
+      const bounds = boundsFromPoints(allPositions);
+
+      if (bounds) {
+        hasFitAllFieldsRef.current = true;
+        map.fitBounds(bounds, { padding: [80, 80], maxZoom: 12 });
+      }
+    }
+  }, [fields, draftPoints, selectedFieldId, drawingContour, mapReady, renderLayers]);
+
+  const registryCount = fields.filter((field) => field.id !== 'preview').length;
 
   return (
     <div className="map-card">
       <div className="section-header">
         <div>
           <h2>Карта полей</h2>
+          <p className="section-header__hint map-card__provider">
+            Геоданные: OpenStreetMap (Leaflet)
+          </p>
         </div>
-        <span className="map-card__region">Оренбургская область</span>
+        <span className="map-card__region">
+          Оренбургская область
+          {registryCount > 0 ? ` · ${registryCount} в реестре` : ''}
+          {mapReady && renderedFieldCount > 0 ? ` · ${renderedFieldCount} на карте` : ''}
+        </span>
       </div>
 
-      <MapContainer
-        bounds={ORENBURG_BOUNDS}
-        boundsOptions={{ padding: [0, 0] }}
-        center={ORENBURG_CENTER}
-        zoom={8}
-        minZoom={8}
-        maxZoom={17}
-        maxBounds={ORENBURG_BOUNDS}
-        maxBoundsViscosity={1}
-        worldCopyJump={false}
-        scrollWheelZoom
-        className="map-container"
-      >
-        <DraftEvents
-          allowedBounds={ORENBURG_BOUNDS}
-          allowedPolygons={ORENBURG_DISTRICT_RINGS}
-          onAddDraftPoint={onAddDraftPoint}
-        />
-        <MapFocusController selectedField={selectedField} />
-        <TileLayer
-          attribution="Tiles &copy; Esri"
-          url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-          bounds={ORENBURG_BOUNDS}
-          noWrap
-        />
+      <div
+        className={`map-container${draftPoints.length > 0 || onAddDraftPoint ? ' map-container--drawing' : ''}`}
+        ref={containerRef}
+      />
 
-        <Polygon
-          positions={OUTSIDE_MASK}
-          pathOptions={{
-            stroke: false,
-            fillColor: '#102015',
-            fillOpacity: 0.34,
-          }}
-        />
+      {mapReady && registryCount > 0 && renderedFieldCount === 0 ? (
+        <p className="map-card__drawing-hint map-card__drawing-hint--warn">
+          Поля загружены, но контуры не отрисованы. Обновите страницу (F5) или проверьте геометрию в БД.
+        </p>
+      ) : null}
 
-        {ORENBURG_DISTRICT_RINGS.map((ring, index) => (
-          <Polygon
-            key={`district-outline-${index}`}
-            positions={ring}
-            pathOptions={{
-              color: 'rgba(32, 50, 38, 0.6)',
-              weight: 1,
-              fill: false,
-            }}
-          />
-        ))}
-
-        {draftPoints.length > 1 ? (
-          <Polyline
-            positions={draftPoints.map((point) => [point.lat, point.lng])}
-            pathOptions={{ color: '#dc2626', dashArray: '6 6' }}
-          />
-        ) : null}
-
-        {draftPoints.map((point, index) => (
-          <Marker
-            draggable
-            eventHandlers={{
-              dragend: (event) => {
-                const latlng = event.target.getLatLng();
-                onMoveDraftPoint?.(index, {
-                  lat: Number(latlng.lat.toFixed(6)),
-                  lng: Number(latlng.lng.toFixed(6)),
-                });
-              },
-              click: () => onRemoveDraftPoint?.(index),
-            }}
-            icon={draftVertexIcon}
-            key={`${point.lat}-${point.lng}-${index}`}
-            position={[point.lat, point.lng]}
-          >
-            <Tooltip direction="top" offset={[0, -10]}>
-              {contourMode === 'edit'
-                ? 'Точка границы: перетащите или нажмите для удаления'
-                : 'Точка контура: перетащите или нажмите для удаления'}
-            </Tooltip>
-          </Marker>
-        ))}
-
-        {fields.map((field) => {
-          const positions = toLeafletPositions(field.geometry);
-
-          if (!positions.length) {
-            return null;
-          }
-
-          return (
-            <Polygon
-              key={field.id}
-              eventHandlers={field.id !== 'preview' && onSelectField ? { click: () => onSelectField(field.id) } : undefined}
-              positions={positions}
-              pathOptions={getFieldStyle(field.id, selectedFieldId)}
-            >
-              <Tooltip className="field-map__label" direction="center" permanent>
-                {field.name}
-              </Tooltip>
-              <Popup>
-                <strong>{field.name}</strong>
-                <br />
-                {field.areaHa} га
-                <br />
-                {field.status}
-              </Popup>
-            </Polygon>
-          );
-        })}
-      </MapContainer>
+      {onAddDraftPoint ? (
+        <p className="map-card__drawing-hint">
+          {draftPoints.length === 0
+            ? 'Кликните по карте внутри Оренбургской области, чтобы поставить первую точку контура (минимум 3).'
+            : `Точек контура: ${draftPoints.length}. Клик — добавить, клик по метке — удалить.`}
+        </p>
+      ) : null}
     </div>
   );
 }

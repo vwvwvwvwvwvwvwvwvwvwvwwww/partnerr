@@ -8,6 +8,7 @@ export async function listEmployees() {
       username,
       full_name AS "fullName",
       role,
+      email,
       position,
       phone,
       hired_at AS "hiredAt",
@@ -34,17 +35,19 @@ export async function createEmployee(data) {
         password_hash,
         full_name,
         role,
+        email,
         position,
         phone,
         hired_at,
         photo_url
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
       RETURNING
         id,
         username,
         full_name AS "fullName",
         role,
+        email,
         position,
         phone,
         hired_at AS "hiredAt",
@@ -57,6 +60,7 @@ export async function createEmployee(data) {
       passwordHash,
       data.fullName,
       data.role,
+      data.email ?? null,
       data.position ?? null,
       data.phone ?? null,
       data.hiredAt ?? null,
@@ -85,17 +89,19 @@ export async function updateEmployee(id, data) {
         password_hash = COALESCE($3, password_hash),
         full_name = $4,
         role = $5,
-        position = $6,
-        phone = $7,
-        hired_at = $8,
-        photo_url = $9,
-        is_active = $10
+        email = $6,
+        position = $7,
+        phone = $8,
+        hired_at = $9,
+        photo_url = $10,
+        is_active = $11
       WHERE id = $1
       RETURNING
         id,
         username,
         full_name AS "fullName",
         role,
+        email,
         position,
         phone,
         hired_at AS "hiredAt",
@@ -109,6 +115,7 @@ export async function updateEmployee(id, data) {
       passwordHash,
       data.fullName,
       data.role,
+      data.email ?? null,
       data.position ?? null,
       data.phone ?? null,
       data.hiredAt ?? null,

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { warehouseApi } from '../api/client';
 import DataTable from '../components/DataTable';
+import PageStack from '../components/PageStack';
 import EntityModalContent from '../components/EntityModalContent';
 import { validateForm } from '../utils/validation';
 
@@ -152,16 +153,13 @@ export default function WarehousePage() {
   }
 
   return (
-    <div className="page-stack">
+    <PageStack error={error} success={success}>
       <section className="page-header">
         <div>
           <span className="eyebrow">Склад и МТО</span>
           <h2>Склад</h2>
         </div>
       </section>
-
-      {error ? <div className="alert alert--error">{error}</div> : null}
-      {success ? <div className="alert alert--success">{success}</div> : null}
 
       <section className="content-grid">
         <form className="card form-card" onSubmit={handleSubmit}>
@@ -252,6 +250,6 @@ export default function WarehousePage() {
           rows={rows}
         />
       </section>
-    </div>
+    </PageStack>
   );
 }

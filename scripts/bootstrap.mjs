@@ -2,12 +2,11 @@ import { execSync } from 'child_process';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { ensureEnvFiles } from './ensure-env.mjs';
-import { dockerComposeUpWait } from './docker-up.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 async function main() {
-  console.log('=== Agro ERP: первичная настройка ===\n');
+  console.log('=== Партнер: первичная настройка ===\n');
 
   ensureEnvFiles();
 
@@ -15,7 +14,9 @@ async function main() {
   execSync('npm install', { cwd: root, stdio: 'inherit' });
   execSync('npm run install:all', { cwd: root, stdio: 'inherit' });
 
-  await dockerComposeUpWait();
+  console.log(
+    '\n→ База SQLite (файл ./backend/data/agro_erp.sqlite). Отдельный Postgres не нужен.\n',
+  );
 
   console.log('\n→ Миграции базы данных…');
   execSync('npm run migrate --prefix backend', { cwd: root, stdio: 'inherit' });
@@ -41,6 +42,9 @@ async function main() {
       SEED_STAFF_PASSWORD: 'Admin12345Secure!',
     },
   });
+
+  console.log('\n→ Демо-данные (поля, склад, культуры)…');
+  execSync('npm run seed-sqlite-demo --prefix backend', { cwd: root, stdio: 'inherit' });
 
   console.log('\n=== Готово ===');
   console.log('Сайт:   http://127.0.0.1:8848  (порт см. VITE_DEV_PORT; при занятом порте — смотри терминал Vite)');

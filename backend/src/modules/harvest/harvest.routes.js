@@ -5,8 +5,19 @@ import { requireCsrf } from '../../middleware/csrf.js';
 import { validateBody } from '../../middleware/validate.js';
 import { createWaybillSchema, updateWaybillSchema } from './harvest.schemas.js';
 import { createWaybill, listWaybills, updateWaybill } from './harvest.service.js';
+import { listDriverContacts, queueWaybillEmail } from './waybill-email.service.js';
 
 const router = express.Router();
+
+/** Список водителей с e-mail для автозаполнения формы путевого листа */
+router.get('/drivers', requireAuth, requireModuleAccess('harvest'), async (req, res, next) => {
+  try {
+    const drivers = await listDriverContacts();
+    return res.json({ data: drivers });
+  } catch (error) {
+    return next(error);
+  }
+});
 
 router.get('/', requireAuth, requireModuleAccess('harvest'), async (req, res, next) => {
   try {
@@ -27,9 +38,16 @@ router.post(
   async (req, res, next) => {
     try {
       const item = await createWaybill(req.validatedBody);
+      queueWaybillEmail(item.id);
+
       return res.status(201).json({
         message: 'Путевой лист добавлен',
         data: item,
+        email: {
+          queued: true,
+          message:
+            'Путевой лист сохранён. Отправка DOCX на e-mail водителя выполняется в фоне (см. SMTP в настройках сервера).',
+        },
       });
     } catch (error) {
       return next(error);

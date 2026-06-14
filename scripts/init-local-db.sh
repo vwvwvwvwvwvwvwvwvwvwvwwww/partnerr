@@ -154,4 +154,4 @@ psql -d "$DB_NAME" -v ON_ERROR_STOP=1 -c "CREATE EXTENSION IF NOT EXISTS pgcrypt
 echo ""
 echo "Использован PostgreSQL ${PG_MAJOR} из: $PG_PREFIX"
 echo "Готово. В backend/.env проверьте: DB_HOST=127.0.0.1 DB_PORT=5432 DB_NAME=$DB_NAME DB_USER=$DB_USER DB_PASSWORD=$DB_PASS"
-echo "Дальше: SKIP_DOCKER=1 npm run bootstrap   и   npm run dev"
+echo "Дальше: npm run bootstrap   и   npm run dev"

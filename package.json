@@ -8,18 +8,24 @@
   "scripts": {
     "setup": "npm install && npm run install:all",
     "bootstrap": "node scripts/bootstrap.mjs",
-    "bootstrap:nodocker": "SKIP_DOCKER=1 npm run bootstrap",
+    "bootstrap:nodocker": "npm run bootstrap",
     "install:all": "npm install --prefix backend && npm install --include=dev --prefix frontend",
     "build": "npm run build --prefix frontend",
     "start:prod": "NODE_ENV=production npm run start --prefix backend",
+    "start:railway": "npm run migrate --prefix backend && NODE_ENV=production npm run start --prefix backend",
     "dev": "concurrently -n backend,frontend -c blue,magenta \"npm run dev --prefix backend\" \"npm run dev --prefix frontend\"",
-    "dev:docker": "node scripts/predocker.mjs && npm run dev",
-    "dev:nodocker": "npm run dev",
+    "dev:latin": "node scripts/dev-latin-path.mjs",
     "dev:backend": "npm run dev --prefix backend",
     "dev:frontend": "npm run dev --prefix frontend",
     "migrate": "npm run migrate --prefix backend",
     "create-admin": "npm run create-admin --prefix backend",
-    "seed-staff": "npm run seed-staff --prefix backend"
+    "seed-staff": "npm run seed-staff --prefix backend",
+    "seed-tech-cards": "npm run seed-tech-cards --prefix backend",
+    "seed-finance": "npm run seed-finance --prefix backend",
+    "seed-waybills": "npm run seed-waybills --prefix backend",
+    "seed-warehouse": "npm run seed-warehouse --prefix backend",
+    "seed-sqlite-demo": "npm run seed-sqlite-demo --prefix backend",
+    "seed-demo": "npm run seed-tech-cards --prefix backend && npm run seed-finance --prefix backend && npm run seed-waybills --prefix backend && npm run seed-warehouse --prefix backend"
   },
   "devDependencies": {
     "concurrently": "^9.2.0"

@@ -83,6 +83,17 @@ function logDatabaseEnvDiagnostics() {
   );
 }
 
+function decodeConnPart(s) {
+  if (!s) {
+    return '';
+  }
+  try {
+    return decodeURIComponent(s);
+  } catch {
+    return s;
+  }
+}
+
 /** Render и др. PaaS передают строку подключения вместо отдельных DB_* */
 function applyFromDatabaseUrl() {
   const raw = process.env.DATABASE_URL?.trim();
@@ -90,29 +101,74 @@ function applyFromDatabaseUrl() {
     return;
   }
 
-  // Не выходим раньше времени: если заданы только DB_HOST/DB_NAME/DB_USER без пароля,
-  // разбор DATABASE_URL (Render «Link Database») не выполнялся — Zod падал на DB_PASSWORD.
-
-  let normalized = raw;
-  if (raw.startsWith('postgres://')) {
-    normalized = `http://${raw.slice('postgres://'.length)}`;
-  } else if (raw.startsWith('postgresql://')) {
-    normalized = `http://${raw.slice('postgresql://'.length)}`;
-  } else {
+  if (!raw.startsWith('postgres://') && !raw.startsWith('postgresql://')) {
     return;
   }
 
-  const u = new URL(normalized);
-  process.env.DB_HOST = u.hostname;
-  process.env.DB_PORT = u.port || '5432';
-  const dbPath = (u.pathname || '/').replace(/^\//, '').split('/')[0] ?? '';
-  process.env.DB_NAME = decodeURIComponent(dbPath);
-  process.env.DB_USER = decodeURIComponent(u.username || '');
-  process.env.DB_PASSWORD = decodeURIComponent(u.password || '');
+  // Не используем new URL('http://' + …): пароль может содержать ? # @ и т.д. (сломает WHATWG URL).
+  const rest = raw.replace(/^postgres(ql)?:\/\//, '');
+  const at = rest.lastIndexOf('@');
+  if (at < 0) {
+    return;
+  }
+
+  const authPart = rest.slice(0, at);
+  let tail = rest.slice(at + 1);
+  const q = tail.indexOf('?');
+  const h = tail.indexOf('#');
+  let end = tail.length;
+  if (q >= 0) {
+    end = Math.min(end, q);
+  }
+  if (h >= 0) {
+    end = Math.min(end, h);
+  }
+  tail = tail.slice(0, end);
+
+  const slash = tail.indexOf('/');
+  const hostPortPart = slash >= 0 ? tail.slice(0, slash) : tail;
+  const dbPathRaw = slash >= 0 ? tail.slice(slash + 1) : '';
+  const dbName = (dbPathRaw.split('/')[0] ?? '').split('?')[0] ?? '';
+
+  const fc = authPart.indexOf(':');
+  const userEnc = fc >= 0 ? authPart.slice(0, fc) : authPart;
+  const passwordEnc = fc >= 0 ? authPart.slice(fc + 1) : '';
+
+  let host;
+  let port;
+  if (hostPortPart.startsWith('[')) {
+    const endBracket = hostPortPart.indexOf(']');
+    host = endBracket > 0 ? hostPortPart.slice(0, endBracket + 1) : hostPortPart;
+    if (hostPortPart.charAt(endBracket + 1) === ':') {
+      port = hostPortPart.slice(endBracket + 2) || '5432';
+    } else {
+      port = '5432';
+    }
+  } else {
+    const colonHost = hostPortPart.lastIndexOf(':');
+    if (colonHost > 0) {
+      host = hostPortPart.slice(0, colonHost);
+      port = hostPortPart.slice(colonHost + 1) || '5432';
+    } else {
+      host = hostPortPart;
+      port = '5432';
+    }
+  }
+
+  process.env.DB_HOST = host;
+  process.env.DB_PORT = port;
+  process.env.DB_NAME = decodeConnPart(dbName);
+  process.env.DB_USER = decodeConnPart(userEnc);
+  process.env.DB_PASSWORD = decodeConnPart(passwordEnc);
 }
 
 ensureDatabaseUrl();
 applyFromDatabaseUrl();
+
+if (!process.env.DB_DRIVER?.trim()) {
+  process.env.DB_DRIVER =
+    process.env.DATABASE_URL?.trim() || process.env.DB_HOST?.trim() ? 'postgres' : 'sqlite';
+}
 
 /** Railway задаёт RAILWAY_PUBLIC_DOMAIN; без APP_ORIGIN CORS ломается в браузере. */
 function applyAppOriginFromRailway() {
@@ -157,30 +213,55 @@ if (isMigrateContext && (!process.env.JWT_SECRET || String(process.env.JWT_SECRE
   process.env.JWT_SECRET = MIGRATE_JWT_PLACEHOLDER;
 }
 
-const envSchema = z.object({
-  NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
-  PORT: z.coerce.number().int().positive().default(4010),
-  /** Путь к `frontend/dist` после `npm run build` в корне; пусто = авто `../frontend/dist` от каталога backend при NODE_ENV=production */
-  FRONTEND_DIST: z.string().default(''),
-  APP_ORIGIN: z.string().url().default('http://127.0.0.1:8848'),
-  DB_HOST: z.string().min(1),
-  DB_PORT: z.coerce.number().int().positive().default(5432),
-  DB_NAME: z.string().min(1),
-  DB_USER: z.string().min(1),
-  DB_PASSWORD: z.string().min(1),
-  DB_POOL_MAX: z.coerce.number().int().positive().default(10),
-  JWT_SECRET: z.string().min(32, 'JWT_SECRET должен быть не короче 32 символов'),
-  JWT_EXPIRES_MINUTES: z.coerce.number().int().positive().default(15),
-  CSRF_COOKIE_NAME: z.string().min(1).default('csrf_token'),
-  SESSION_COOKIE_NAME: z.string().min(1).default('session_token'),
-});
+const envSchema = z
+  .object({
+    NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
+    PORT: z.coerce.number().int().positive().default(4010),
+    /** Путь к `frontend/dist` после `npm run build` в корне; пусто = авто `../frontend/dist` от каталога backend при NODE_ENV=production */
+    FRONTEND_DIST: z.string().default(''),
+    APP_ORIGIN: z.string().url().default('http://127.0.0.1:8848'),
+    DB_DRIVER: z.enum(['sqlite', 'postgres']).default('sqlite'),
+    /** Файл SQLite (без отдельного сервера БД — удобно для хостинга) */
+    SQLITE_PATH: z.string().default('./data/agro_erp.sqlite'),
+    DB_HOST: z.string().default('127.0.0.1'),
+    DB_PORT: z.coerce.number().int().positive().default(5432),
+    DB_NAME: z.string().default('agro_erp'),
+    DB_USER: z.string().default('agro_erp_user'),
+    DB_PASSWORD: z.string().default(''),
+    DB_POOL_MAX: z.coerce.number().int().positive().default(10),
+    JWT_SECRET: z.string().min(32, 'JWT_SECRET должен быть не короче 32 символов'),
+    JWT_EXPIRES_MINUTES: z.coerce.number().int().positive().default(15),
+    CSRF_COOKIE_NAME: z.string().min(1).default('csrf_token'),
+    SESSION_COOKIE_NAME: z.string().min(1).default('session_token'),
+    SMTP_HOST: z.string().default(''),
+    SMTP_PORT: z.coerce.number().int().positive().default(587),
+    SMTP_SECURE: z.preprocess(
+      (v) => v === 'true' || v === '1' || v === true,
+      z.boolean().default(false),
+    ),
+    SMTP_USER: z.string().default(''),
+    SMTP_PASS: z.string().default(''),
+    SMTP_FROM: z.string().default(''),
+  })
+  .superRefine((data, ctx) => {
+    if (data.DB_DRIVER !== 'postgres') {
+      return;
+    }
+
+    if (!data.DB_HOST?.trim() || !data.DB_NAME?.trim() || !data.DB_USER?.trim()) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'Для DB_DRIVER=postgres нужны DB_HOST, DB_NAME и DB_USER',
+      });
+    }
+  });
 
 let env;
 try {
   env = envSchema.parse(process.env);
 } catch (error) {
   console.error(
-    'Ошибка конфигурации окружения. Нужны подключение к Postgres и JWT_SECRET ≥ 32 символов.',
+    'Ошибка конфигурации окружения. Нужны JWT_SECRET ≥ 32 символов и корректные настройки БД (SQLite или Postgres).',
   );
   logDatabaseEnvDiagnostics();
   console.error(error);
@@ -190,3 +271,7 @@ try {
 export { env };
 
 export const isProduction = env.NODE_ENV === 'production';
+
+export function isSmtpConfigured() {
+  return Boolean(env.SMTP_HOST?.trim() && env.SMTP_FROM?.trim());
+}

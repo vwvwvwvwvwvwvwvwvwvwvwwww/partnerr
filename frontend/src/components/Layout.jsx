@@ -1,15 +1,11 @@
-import { NavLink, useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import AnimatedFieldsBackground from './AnimatedFieldsBackground';
 import BrandLogo from './BrandLogo';
+import SidebarNav from './SidebarNav';
+import SidebarUserBlock from './SidebarUserBlock';
+import WorkspaceFooter from './WorkspaceFooter';
+import WorkspaceHeader from './WorkspaceHeader';
 import { roleHasModule } from '../config/module-access';
-
-const roleLabels = {
-  admin: 'Администратор',
-  agronomist: 'Агроном',
-  mechanic: 'Механик',
-  storekeeper: 'Кладовщик',
-  accountant: 'Бухгалтер',
-};
 
 const navItems = [
   { to: '/', label: 'Сводка', module: 'dashboard' },
@@ -46,43 +42,27 @@ export default function Layout({
           <BrandLogo light />
         </div>
 
-        <nav className="sidebar__nav">
-          {withEmployees.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              className={({ isActive }) => `nav-link${isActive ? ' nav-link--active' : ''}`}
-            >
-              {item.label}
-            </NavLink>
-          ))}
-        </nav>
+        <SidebarNav items={withEmployees} />
 
-        <div className="sidebar__footer">
-          <div className="user-card">
-            <strong>{user.fullName}</strong>
-            <span>{roleLabels[user.role] ?? user.role}</span>
-          </div>
-          <button className="background-toggle" onClick={onToggleBackgroundAnimation} type="button">
-            Анимация фона: {backgroundAnimationEnabled ? 'вкл' : 'выкл'}
-          </button>
-          <button className="button button--ghost" onClick={onLogout}>
-            Выйти
-          </button>
-        </div>
+        <SidebarUserBlock
+          user={user}
+          backgroundAnimationEnabled={backgroundAnimationEnabled}
+          onToggleBackgroundAnimation={onToggleBackgroundAnimation}
+          onLogout={onLogout}
+        />
       </aside>
 
       <main className="content">
-        <header className="workspace-header">
-          <div className="workspace-header__lead">
-            <h2>{currentItem.label}</h2>
-          </div>
-        </header>
+        <WorkspaceHeader title={currentItem.label} />
 
         <div className="workspace-body">
           {children}
         </div>
+
+        <WorkspaceFooter />
       </main>
     </div>
   );
 }
+
+

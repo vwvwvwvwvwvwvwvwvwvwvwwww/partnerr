@@ -58,7 +58,7 @@ export default function EmployeePhotoPreview({ fullName, role, photoUrl, onPhoto
 
       <div className="employee-preview__meta">
         <strong>{fullName || 'Новый сотрудник'}</strong>
-        <span>{roleLabels[role] ?? 'Роль не выбрана'}</span>
+        <span>{roleLabels[role] ?? 'Роль в системе не выбрана'}</span>
         <span>{photoUrl ? 'Фото выбрано и будет сохранено в карточке сотрудника' : 'Можно загрузить фото или оставить карточку без изображения'}</span>
       </div>
 

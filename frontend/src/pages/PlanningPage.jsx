@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { cropsApi, planningApi } from '../api/client';
 import DataTable from '../components/DataTable';
+import PageStack from '../components/PageStack';
 import EntityModalContent from '../components/EntityModalContent';
 import { validateForm } from '../utils/validation';
 
@@ -246,16 +247,13 @@ export default function PlanningPage() {
   }
 
   return (
-    <div className="page-stack">
+    <PageStack error={error} success={success}>
       <section className="page-header">
         <div>
           <span className="eyebrow">Планирование</span>
           <h2>Технологические карты</h2>
         </div>
       </section>
-
-      {error ? <div className="alert alert--error">{error}</div> : null}
-      {success ? <div className="alert alert--success">{success}</div> : null}
 
       <section className="content-grid">
         <form className="card form-card" onSubmit={handleSubmit}>
@@ -473,6 +471,6 @@ export default function PlanningPage() {
           rows={rows}
         />
       </section>
-    </div>
+    </PageStack>
   );
 }

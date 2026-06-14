@@ -1,4 +1,4 @@
-# Agro ERP
+# Партнер
 
 Локальная ERP-система сельскохозяйственного предприятия на `React + Vite`, `Node.js + Express`, `PostgreSQL + PostGIS` без ORM.
 
@@ -7,23 +7,54 @@
 - безопасная cookie-auth с `HttpOnly` JWT и CSRF double-submit token;
 - backend API с валидацией через `zod`;
 - только параметризованные SQL-запросы через `pg`;
-- модуль `Поля и ГИС` с картой `Leaflet`;
+- модуль `Поля и ГИС` с картой **OpenStreetMap** (Leaflet, без API-ключа);
 - модуль `Техника`;
 - модуль `Культуры`;
 - страницы под остальные ERP-модули;
 - SQL-миграции и скрипт создания администратора;
-- `docker-compose` для быстрого запуска `PostgreSQL + PostGIS`;
+- локальная база **SQLite** (по умолчанию, файл `backend/data/agro_erp.sqlite`) — **без Postgres на хостинге**;
+- опционально PostgreSQL + PostGIS для локальной разработки (`DB_DRIVER=postgres`);
 - **роли и ограничение разделов** по должностям (см. `backend/src/config/module-access.js`);
 - **отчёты в Word** (`/reports`, API `GET /api/reports/summary.docx`).
 
+## ⚠️ Папка «диплом» (кириллица в пути) — сайт не стартует
+
+На macOS Node/Vite часто падают с **`ECANCELED`** или **`ETIMEDOUT`** при чтении файлов.
+
+**Решение (любое одно):**
+
+```bash
+cd ~/Desktop
+mv диплом diploma
+cd diploma
+npm run dev
+```
+
+или из текущей папки:
+
+```bash
+npm run dev:latin
+```
+
+(копия в `~/Desktop/agro-erp-partner`, первый раз — установка зависимостей).
+
+В терминал **не вставляйте** строки с `#` — это комментарий, zsh напишет `command not found: #`.
+
+---
+
 ## Самый простой запуск (из корня папки проекта)
 
-Нужны **Node.js 20+** и **Docker Desktop** (PostgreSQL с PostGIS поднимется сам). **Без Docker** — см. раздел **«Без Docker (PostgreSQL на Mac через Homebrew)»** ниже на этой странице.
+Нужны **Node.js 20+**. **PostgreSQL не обязателен** — по умолчанию используется SQLite.
 
-В терминале перейди в корень репозитория (где лежит `package.json` и `docker-compose.yml`):
+В терминале перейди в корень репозитория (где лежит `package.json`):
 
 ```bash
 cd /путь/к/диплом
+```
+
+**Один раз** выполни:
+
+```bash
 npm run bootstrap
 npm run dev
 ```
@@ -32,12 +63,11 @@ npm run dev
 
 - создаёт `backend/.env` и `frontend/.env` из примеров, если их ещё нет;
 - ставит зависимости в корне, в `backend` и `frontend`;
-- выполняет `docker compose up` и ждёт готовности базы;
 - применяет миграции;
 - создаёт администратора **`admin`** с паролем **`Admin12345Secure!`**;
 - создаёт учётки сотрудников (агрономы, механики, кладовщики, бухгалтеры) с тем же паролем — список в `backend/src/scripts/seed-staff-accounts.js` (ФИО можно заменить на свои).
 
-Команда **`npm run dev`** запускает backend и frontend **без Docker** (браузер откроется сам, см. Vite). Чтобы перед этим поднять Postgres в Docker: **`npm run dev:docker`**.
+Команда **`npm run dev`** запускает backend и frontend (браузер откроется сам, см. Vite).
 
 Открой в браузере: **http://127.0.0.1:8848** (если порт 8848 занят — смотри в терминале строку `Local:` у Vite) — вход **`admin`** / **`Admin12345Secure!`**. Учётные записи сотрудников: логины `agronom`, `agronom2`, `mechanic`, `kladovshik`, `buhgalter` и др. (см. скрипт выше), **тот же пароль**.
 
@@ -55,9 +85,9 @@ npm run dev
 
 Если список сотрудников в дипломе другой — отредактируйте массив `staff` в `backend/src/scripts/seed-staff-accounts.js` и выполните `npm run seed-staff` из корня или повторно `npm run bootstrap`.
 
-## Без Docker (PostgreSQL на Mac через Homebrew)
+## Локальная база PostgreSQL + PostGIS (Mac / Homebrew)
 
-Docker **не нужен** для ежедневного **`npm run dev`**. Для **`npm run bootstrap`** без контейнера задайте **`SKIP_DOCKER=1`** (или используйте **`npm run bootstrap:nodocker`**).
+Если база уже настроена вручную в `backend/.env`, достаточно **`npm run bootstrap`** (один раз) и дальше **`npm run dev`**.
 
 ### 1. Установи PostgreSQL и PostGIS (Homebrew на Mac)
 
@@ -92,16 +122,16 @@ DB_PASSWORD='МойПароль123' ./scripts/init-local-db.sh
 
 Тогда в **`backend/.env`** укажи тот же **`DB_PASSWORD`**.
 
-### 3. Один раз настрой проект без Docker
+### 3. Один раз настрой проект
 
 ```bash
 cd /путь/к/диплом
-npm run bootstrap:nodocker
+npm run bootstrap
 ```
 
-(или вручную: `SKIP_DOCKER=1 npm run bootstrap`)
+(алиас **`npm run bootstrap:nodocker`** то же самое, оставлен для привычки.)
 
-### 4. Каждый день запуск сайта без Docker
+### 4. Каждый день запуск сайта
 
 ```bash
 npm run dev
@@ -110,8 +140,6 @@ npm run dev
 Сайт: **http://127.0.0.1:8848** (в адресе **не** используй `www.`; в терминале Vite смотри точный порт, если 8848 занят).
 
 ---
-
-Если PostgreSQL уже был установлен раньше и `backend/.env` настроен вручную: достаточно **`SKIP_DOCKER=1 npm run bootstrap`** (один раз) и дальше **`npm run dev`**.
 
 ## Подробная инструкция по шагам
 
@@ -123,7 +151,7 @@ npm run dev
 
 - `Node.js` 20+;
 - `npm`;
-- `Docker` и `Docker Compose` (или свой PostgreSQL **16+** с **PostGIS**; на Mac с Homebrew удобнее **17+**, см. шаг 1 выше).
+- свой PostgreSQL **16+** с **PostGIS** (на Mac с Homebrew удобнее **17+**, см. шаг 1 выше).
 
 ### 2. Создай env-файлы
 
@@ -134,20 +162,14 @@ cp backend/.env.example backend/.env
 cp frontend/.env.example frontend/.env
 ```
 
-Если работаешь по инструкции ниже через `docker-compose`, можно оставить значения по умолчанию из `backend/.env.example`.
+Скопируй примеры и при необходимости поправь `backend/.env` под свой Postgres (значения по умолчанию — в `backend/.env.example`).
 
-### 3. Подними PostgreSQL + PostGIS
+### 3. Убедись, что PostgreSQL + PostGIS запущены
 
-Из корня проекта выполни:
-
-```bash
-docker compose up -d
-```
-
-Проверить, что база запустилась:
+Используй **`./scripts/init-local-db.sh`** (см. выше) или свой уже настроенный инстанс. Проверка подключения:
 
 ```bash
-docker compose ps
+psql "postgresql://USER:PASS@127.0.0.1:5432/ИМЯ_БД" -c "SELECT 1"
 ```
 
 ### 4. Установи зависимости
@@ -223,31 +245,25 @@ http://127.0.0.1:8848
 
 Остановить frontend/backend можно через `Ctrl+C` в терминалах.
 
-Остановить базу:
+Остановить локальный PostgreSQL из Homebrew (если ставили через `brew services`):
 
 ```bash
-docker compose down
+brew services stop postgresql@17
 ```
 
-Если нужно остановить базу и удалить данные:
-
-```bash
-docker compose down -v
-```
+(версию подставь свою.)
 
 ## Если сайт не запускается
 
 ### Mac с чипом Apple Silicon (M1 / M2 / M3)
 
-Образ **`postgis/postgis:16-3.4`** в Docker Hub сейчас **без нативного arm64** для этого тега: на Mac с Apple Silicon Docker поднимает контейнер как **linux/amd64** (эмуляция). В логах может быть предупреждение про несовпадение платформы — **это нормально**. Первый запуск и `docker compose up` могут занять **1–3 минуты**; в `docker-compose.yml` для healthcheck задан больший `start_period`, чтобы реже «залипать» на `Waiting`.
-
-Явно указывать `platform: linux/arm64` для этого образа **нельзя** — Docker выдаст ошибку, что у образа нет такой платформы.
+Если PostGIS ругается на отсутствие файлов расширения — следуй разделу выше: **`brew install postgresql@17 postgis`** и **`./scripts/init-local-db.sh`** (скрипт создаёт нужные симлинки).
 
 ### Ошибка подключения к БД
 
 Проверь:
 
-- запущен ли `docker compose`;
+- запущен ли PostgreSQL (`brew services list` или свой способ);
 - совпадают ли `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` в `backend/.env`;
 - выполнены ли миграции.
 
@@ -255,12 +271,12 @@ docker compose down -v
 
 После `npm run bootstrap` используйте **`admin`** / **`Admin12345Secure!`**. Иначе проверь, что администратор создан командой `npm run create-admin`.
 
-### Docker не нужен / не запускается
+### Нет подключения к БД
 
-Настройте `backend/.env` на свой PostgreSQL с PostGIS, затем:
+В репозитории **нет** Docker Compose: подними **Postgres + PostGIS** отдельно (Homebrew + **`scripts/init-local-db.sh`**, Postgres.app или VPS), пропиши доступ в **`backend/.env`**, затем:
 
 ```bash
-SKIP_DOCKER=1 npm run bootstrap
+npm run bootstrap
 npm run dev
 ```
 
@@ -276,9 +292,13 @@ npm run dev
 
 Порт, который вы вводите в адресной строке, должен совпадать с тем, что вывел `npm run dev` у **frontend**. Если открыть занятый другим приложением порт (часто `5173` или `4000`), браузер покажет то другое приложение. В этом проекте по умолчанию заданы порты **8848** (сайт) и **4010** (API); их можно сменить в `frontend/.env` (`VITE_DEV_PORT`, `VITE_API_URL`) и `backend/.env` (`PORT`, `APP_ORIGIN`). Для входа и cookies **хост фронта и `VITE_API_URL` должны совпадать** (лучше везде `127.0.0.1`, не смешивать с `localhost`).
 
-## Публикация на хостинге (VPS)
+## Публикация на хостинге
 
-Краткая инструкция: **`DEPLOY.md`** (VPS). Деплой на **Render**: **`DEPLOY-RENDER.md`** и **`render.yaml`**.
+**Пошагово:** [docs/GITHUB-AND-HOST.md](docs/GITHUB-AND-HOST.md) — новый GitHub-репозиторий и деплoy.
+
+Кратко: **`DEPLOY-RAILWAY.md`** (Railway, SQLite), **`DEPLOY-RENDER.md`**, **`render.yaml`**.
+
+На хостинге достаточно одного Web-сервиса: `DB_DRIVER=sqlite`, `JWT_SECRET`, `NODE_ENV=production`, `VITE_API_URL=/api`.
 
 ## Важно
 

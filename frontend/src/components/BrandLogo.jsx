@@ -35,7 +35,7 @@ export default function BrandLogo({ compact = false, light = false }) {
       </div>
 
       <div className="brand-logo__text">
-        {!compact ? <strong className="brand-logo__name">Сельхоз ERP</strong> : null}
+        {!compact ? <strong className="brand-logo__name">Партнер</strong> : null}
       </div>
     </div>
   );

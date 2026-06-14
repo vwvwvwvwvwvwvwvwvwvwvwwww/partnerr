@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { cropsApi, fieldsApi, harvestApi } from '../api/client';
 import DataTable from '../components/DataTable';
+import PageStack from '../components/PageStack';
 import EntityModalContent from '../components/EntityModalContent';
 import { validateForm } from '../utils/validation';
 
@@ -21,9 +22,22 @@ const seedOptions = [
   'Озимая пшеница',
 ];
 
+function formatTripDate(value) {
+  if (!value) {
+    return '—';
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return String(value).slice(0, 10);
+  }
+
+  return date.toLocaleDateString('ru-RU');
+}
+
 const columns = [
   { key: 'documentNumber', title: '№ листа' },
-  { key: 'tripDate', title: 'Дата' },
+  { key: 'tripDate', title: 'Дата', render: (value) => formatTripDate(value) },
   { key: 'actionType', title: 'Действие' },
   { key: 'seedType', title: 'Семена' },
   { key: 'fieldName', title: 'Поле' },
@@ -42,6 +56,7 @@ const detailsFields = [
   { key: 'fieldName', label: 'Поле' },
   { key: 'cropName', label: 'Культура из справочника' },
   { key: 'driverName', label: 'Водитель' },
+  { key: 'driverEmail', label: 'E-mail водителя' },
   { key: 'mechanizatorName', label: 'Механизатор' },
   { key: 'vehicleNumber', label: 'Транспорт' },
   { key: 'trailerNumber', label: 'Прицеп / полуприцеп' },
@@ -83,6 +98,7 @@ const initialForm = {
   actionType: 'Посев',
   seedType: 'Подсолнечник',
   driverName: '',
+  driverEmail: '',
   mechanizatorName: '',
   vehicleNumber: '',
   trailerNumber: '',
@@ -150,6 +166,7 @@ export default function HarvestPage({ user }) {
   const [rows, setRows] = useState([]);
   const [fields, setFields] = useState([]);
   const [crops, setCrops] = useState([]);
+  const [drivers, setDrivers] = useState([]);
   const [form, setForm] = useState(initialForm);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -187,6 +204,7 @@ export default function HarvestPage({ user }) {
         options: crops.map((crop) => ({ value: String(crop.id), label: crop.name })),
       },
       { name: 'driverName', label: 'Водитель', required: true, minLength: 3 },
+      { name: 'driverEmail', label: 'E-mail водителя', type: 'email' },
       { name: 'mechanizatorName', label: 'Механизатор', minLength: 3 },
       { name: 'vehicleNumber', label: 'Транспорт', required: true, minLength: 2 },
       { name: 'trailerNumber', label: 'Прицеп / полуприцеп' },
@@ -259,21 +277,46 @@ export default function HarvestPage({ user }) {
   useEffect(() => {
     let isActive = true;
 
-    Promise.all([harvestApi.list(), fieldsApi.list(), cropsApi.list()])
-      .then(([waybillsResponse, fieldsResponse, cropsResponse]) => {
-        if (!isActive) {
-          return;
-        }
+    async function loadPageData() {
+      const errors = [];
 
-        setRows(waybillsResponse.data);
-        setFields(fieldsResponse.data);
-        setCrops(cropsResponse.data);
-      })
-      .catch((apiError) => {
-        if (isActive) {
-          setError(apiError.message);
-        }
-      });
+      const [waybillsResult, driversResult, fieldsResult, cropsResult] = await Promise.allSettled([
+        harvestApi.list(),
+        harvestApi.listDrivers(),
+        fieldsApi.list(),
+        cropsApi.list(),
+      ]);
+
+      if (!isActive) {
+        return;
+      }
+
+      if (waybillsResult.status === 'fulfilled') {
+        setRows(waybillsResult.value.data ?? []);
+      } else {
+        errors.push(waybillsResult.reason?.message ?? 'Не удалось загрузить журнал рейсов');
+      }
+
+      if (driversResult.status === 'fulfilled') {
+        setDrivers(driversResult.value.data ?? []);
+      }
+
+      if (fieldsResult.status === 'fulfilled') {
+        setFields(fieldsResult.value.data ?? []);
+      } else {
+        errors.push(fieldsResult.reason?.message ?? 'Не удалось загрузить поля');
+      }
+
+      if (cropsResult.status === 'fulfilled') {
+        setCrops(cropsResult.value.data ?? []);
+      } else {
+        errors.push(cropsResult.reason?.message ?? 'Не удалось загрузить культуры');
+      }
+
+      setError(errors.length > 0 ? errors.join('. ') : '');
+    }
+
+    loadPageData();
 
     return () => {
       isActive = false;
@@ -298,7 +341,7 @@ export default function HarvestPage({ user }) {
     }
 
     try {
-      await harvestApi.create({
+      const response = await harvestApi.create({
         documentNumber: form.documentNumber,
         shiftNumber: form.shiftNumber || null,
         fieldId: Number(form.fieldId),
@@ -306,6 +349,7 @@ export default function HarvestPage({ user }) {
         actionType: form.actionType,
         seedType: form.seedType,
         driverName: form.driverName,
+        driverEmail: form.driverEmail?.trim() || null,
         mechanizatorName: form.mechanizatorName || null,
         vehicleNumber: form.vehicleNumber,
         trailerNumber: form.trailerNumber || null,
@@ -336,7 +380,12 @@ export default function HarvestPage({ user }) {
       });
 
       setForm(initialForm);
-      setSuccess('Путевой лист сохранен');
+      const emailNote = response.email?.message;
+      setSuccess(
+        emailNote
+          ? `Путевой лист сохранён. ${emailNote}`
+          : 'Путевой лист сохранён',
+      );
       await reload();
     } catch (apiError) {
       setError(apiError.message);
@@ -355,6 +404,7 @@ export default function HarvestPage({ user }) {
       actionType: values.actionType,
       seedType: values.seedType,
       driverName: values.driverName,
+      driverEmail: values.driverEmail?.trim() || null,
       mechanizatorName: values.mechanizatorName || null,
       vehicleNumber: values.vehicleNumber,
       trailerNumber: values.trailerNumber || null,
@@ -418,16 +468,13 @@ export default function HarvestPage({ user }) {
   );
 
   return (
-    <div className="page-stack">
+    <PageStack error={error} success={success}>
       <section className="page-header">
         <div>
           <span className="eyebrow">Урожай и логистика</span>
           <h2>Логистика</h2>
         </div>
       </section>
-
-      {error ? <div className="alert alert--error">{error}</div> : null}
-      {success ? <div className="alert alert--success">{success}</div> : null}
 
       <section className="content-grid">
         {canEditHarvest ? (
@@ -483,7 +530,34 @@ export default function HarvestPage({ user }) {
             </label>
             <label className="field">
               <span>Водитель</span>
-              <input required value={form.driverName} onChange={(event) => setForm((prev) => ({ ...prev, driverName: event.target.value }))} />
+              <input
+                required
+                list="harvest-drivers"
+                value={form.driverName}
+                onChange={(event) => setForm((prev) => ({ ...prev, driverName: event.target.value }))}
+              />
+              <datalist id="harvest-drivers">
+                {drivers.map((driver) => (
+                  <option key={driver.id} value={driver.fullName} />
+                ))}
+              </datalist>
+            </label>
+            <label className="field">
+              <span>E-mail водителя</span>
+              <input
+                type="email"
+                placeholder="Для отправки путевого листа"
+                value={form.driverEmail}
+                onChange={(event) => setForm((prev) => ({ ...prev, driverEmail: event.target.value }))}
+                onBlur={() => {
+                  const match = drivers.find(
+                    (d) => d.fullName?.trim().toLowerCase() === form.driverName.trim().toLowerCase(),
+                  );
+                  if (match?.email && !form.driverEmail) {
+                    setForm((prev) => ({ ...prev, driverEmail: match.email }));
+                  }
+                }}
+              />
             </label>
             <label className="field">
               <span>Механизатор</span>
@@ -657,6 +731,7 @@ export default function HarvestPage({ user }) {
                 actionType: row.actionType ?? 'Посев',
                 seedType: row.seedType ?? 'Подсолнечник',
                 driverName: row.driverName ?? '',
+                driverEmail: row.driverEmail ?? '',
                 mechanizatorName: row.mechanizatorName ?? '',
                 vehicleNumber: row.vehicleNumber ?? '',
                 trailerNumber: row.trailerNumber ?? '',
@@ -696,6 +771,6 @@ export default function HarvestPage({ user }) {
           rows={rows}
         />
       </section>
-    </div>
+    </PageStack>
   );
 }

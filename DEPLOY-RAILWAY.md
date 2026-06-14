@@ -1,52 +1,51 @@
 # Деплой на [Railway](https://railway.com) (из GitHub)
 
-В корне репозитория **`railway.json`**: сборка и старт. **Путь healthcheck в файле не задан** — Railway не будет останавливать деплой на шаге «Network → Healthcheck» (эту проверку при желании можно включить в UI сервиса позже). Конфиг: [Config as Code](https://docs.railway.com/reference/config-as-code).
+В корне репозитория **`railway.json`**: сборка и старт.
 
-**Миграции БД** в `railway.json` **не запускаются автоматически** (чтобы деплой не падал на pre-deploy). Один раз после первого успешного деплоя выполните в [Shell](https://docs.railway.com/guides/cli#shell) сервиса приложения из **корня репозитория**:
-
-```bash
-npm run migrate --prefix backend
-```
-
-(Либо `cd backend && npm run migrate`.)
+**База данных:** по умолчанию **SQLite** (файл `backend/data/agro_erp.sqlite`). **Отдельный Postgres/PostGIS не нужен** — достаточно одного Web-сервиса.
 
 ## 1. Проект из GitHub
 
-1. [New project → GitHub](https://railway.com/new/github) → репозиторий Agro ERP.
+1. [New project → GitHub](https://railway.com/new/github) → репозиторий «Партнер».
 2. При необходимости в сервисе укажите ветку **`main`**.
 
-## 2. База данных с PostGIS
-
-Нужны **PostGIS** и **pgcrypto** (см. `backend/migrations/001_init_extensions.sql`).
-
-Обычный **PostgreSQL** на Railway без PostGIS часто **не подходит**. Добавьте шаблон с PostGIS, например [PG 17 + PostGIS](https://railway.com/deploy/postgis-17).
-
-В сервисе **приложения** → **Variables** → **`DATABASE_URL`** → **Reference** на сервис БД → **`DATABASE_URL`**. Подробнее: [Variables](https://docs.railway.com/guides/variables). Если reference не сделан, но в сервис «просочились» стандартные **`PGHOST` / `PGUSER` / `PGPASSWORD` / `PGDATABASE`**, приложение **соберёт** строку подключения само. Надёжнее всё равно задать **`DATABASE_URL`** явно.
-
-## 3. Переменные (сервис приложения)
+## 2. Переменные (сервис приложения)
 
 | Переменная | Обязательно | Значение |
 |------------|-------------|----------|
-| `DATABASE_URL` | да | Reference на Postgres/PostGIS |
+| `DB_DRIVER` | да | `sqlite` |
+| `SQLITE_PATH` | нет | `./data/agro_erp.sqlite` (по умолчанию) |
 | `JWT_SECRET` | да | ≥ **32** символов |
 | `NODE_ENV` | да | `production` |
 | `VITE_API_URL` | да | `/api` (для сборки фронта) |
-| `APP_ORIGIN` | нет | Если **не** задать, backend подставит **`https://` + `RAILWAY_PUBLIC_DOMAIN`** (Railway добавляет переменную сам). Свой домен — задайте `APP_ORIGIN` вручную. |
+| `APP_ORIGIN` | нет | Если не задать, подставится `https://` + `RAILWAY_PUBLIC_DOMAIN` |
+
+`DATABASE_URL` и Postgres **не нужны**.
 
 `PORT` задаёт Railway — backend его читает.
 
-## 4. Сборка и старт (`railway.json`)
+## 3. Сборка и старт (`railway.json`)
 
 - **Build:** `npm install && npm run install:all && npm run build`
-- **Start:** `NODE_ENV=production node backend/src/server.js` (из корня репозитория; путь к `frontend/dist` ищется от расположения `app.js`, не от `cwd`)
-- **Healthcheck:** в репозитории **не задан** — деплой не блокируется на Network. После выката откройте в браузере `/health` или `/api/health`. При необходимости добавьте проверку в настройках сервиса на Railway.
+- **Start:** `npm run start:railway` — миграции SQLite + сервер
 
-## 5. Проверка
+После первого деплоя в [Shell](https://docs.railway.com/guides/cli#shell):
 
-1. Деплой **зелёный** → в Shell: `npm run migrate --prefix backend`.
-2. Логи: `ERP backend запущен на порту …`
-3. Браузер: `https://…/health` или `…/api/health` → `{"status":"ok"}`
-4. Администратор: см. README / `create-admin`.
+```bash
+ADMIN_USERNAME=admin ADMIN_PASSWORD='ВашНадёжныйПароль' ADMIN_FULL_NAME='Администратор' npm run create-admin --prefix backend
+SEED_STAFF_PASSWORD='ВашНадёжныйПароль' npm run seed-staff --prefix backend
+npm run seed-sqlite-demo --prefix backend
+```
+
+## 4. Проверка
+
+1. Деплой **зелёный**
+2. `https://…/api/health` → `{"status":"ok"}`
+3. Вход: `admin` / ваш пароль
+
+## 5. PostgreSQL (опционально)
+
+Если нужен Postgres локально с PostGIS: `DB_DRIVER=postgres` и `DB_*` в `backend/.env`. Для хостинга это **не обязательно**.
 
 ## 6. Ссылки
 

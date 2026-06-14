@@ -1,4 +1,33 @@
 import { query } from '../../db/pool.js';
+import { isSqlite } from '../../db/dialect.js';
+
+function geometrySelect(alias = 'f') {
+  return isSqlite
+    ? `${alias}.geometry AS geometry`
+    : `ST_AsGeoJSON(${alias}.geometry)::json AS geometry`;
+}
+
+function geometryWriteExpression(paramIndex) {
+  return isSqlite
+    ? `$${paramIndex}`
+    : `ST_Multi(ST_SetSRID(ST_GeomFromGeoJSON($${paramIndex}), 4326))`;
+}
+
+function normalizeGeometryRow(row) {
+  if (!row) {
+    return row;
+  }
+
+  if (isSqlite && typeof row.geometry === 'string') {
+    try {
+      return { ...row, geometry: JSON.parse(row.geometry) };
+    } catch {
+      return row;
+    }
+  }
+
+  return row;
+}
 
 export async function listFields() {
   const sql = `
@@ -11,7 +40,7 @@ export async function listFields() {
       f.status,
       f.current_crop_id AS "currentCropId",
       c.name AS "currentCropName",
-      ST_AsGeoJSON(f.geometry)::json AS geometry,
+      ${geometrySelect('f')},
       f.created_at AS "createdAt"
     FROM fields f
     LEFT JOIN crops c ON c.id = f.current_crop_id
@@ -19,10 +48,12 @@ export async function listFields() {
   `;
 
   const result = await query(sql);
-  return result.rows;
+  return result.rows.map(normalizeGeometryRow);
 }
 
 export async function createField(data, createdBy) {
+  const geometryValue = isSqlite ? JSON.stringify(data.geometry) : JSON.stringify(data.geometry);
+
   const text = `
     INSERT INTO fields (
       name,
@@ -41,7 +72,7 @@ export async function createField(data, createdBy) {
       $4,
       $5,
       $6,
-      ST_Multi(ST_SetSRID(ST_GeomFromGeoJSON($7), 4326)),
+      ${geometryWriteExpression(7)},
       $8
     )
     RETURNING
@@ -52,7 +83,7 @@ export async function createField(data, createdBy) {
       soil_type AS "soilType",
       status,
       current_crop_id AS "currentCropId",
-      ST_AsGeoJSON(geometry)::json AS geometry,
+      ${geometrySelect()},
       created_at AS "createdAt"
   `;
 
@@ -66,14 +97,17 @@ export async function createField(data, createdBy) {
       data.soilType ?? null,
       data.status,
       data.currentCropId ?? null,
-      JSON.stringify(data.geometry),
+      geometryValue,
       createdBy,
     ],
   });
-  return result.rows[0];
+
+  return normalizeGeometryRow(result.rows[0]);
 }
 
 export async function updateField(id, data) {
+  const geometryValue = isSqlite ? JSON.stringify(data.geometry) : JSON.stringify(data.geometry);
+
   const text = `
     UPDATE fields
     SET
@@ -83,7 +117,7 @@ export async function updateField(id, data) {
       soil_type = $5,
       status = $6,
       current_crop_id = $7,
-      geometry = ST_Multi(ST_SetSRID(ST_GeomFromGeoJSON($8), 4326))
+      geometry = ${geometryWriteExpression(8)}
     WHERE id = $1
     RETURNING
       id,
@@ -93,7 +127,7 @@ export async function updateField(id, data) {
       soil_type AS "soilType",
       status,
       current_crop_id AS "currentCropId",
-      ST_AsGeoJSON(geometry)::json AS geometry,
+      ${geometrySelect()},
       created_at AS "createdAt"
   `;
 
@@ -108,7 +142,7 @@ export async function updateField(id, data) {
       data.soilType ?? null,
       data.status,
       data.currentCropId ?? null,
-      JSON.stringify(data.geometry),
+      geometryValue,
     ],
   });
 
@@ -118,5 +152,5 @@ export async function updateField(id, data) {
     throw error;
   }
 
-  return result.rows[0];
+  return normalizeGeometryRow(result.rows[0]);
 }

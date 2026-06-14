@@ -41,7 +41,19 @@ app.use(
     contentSecurityPolicy: {
       useDefaults: true,
       directives: {
-        'img-src': ["'self'", 'data:', 'blob:', 'https://tile.openstreetmap.org'],
+        'img-src': [
+          "'self'",
+          'data:',
+          'blob:',
+          'https://*.tile.openstreetmap.org',
+          'https://tile.openstreetmap.org',
+        ],
+        'script-src': ["'self'"],
+        'connect-src': [
+          "'self'",
+          'https://*.openstreetmap.org',
+        ],
+        'worker-src': ["'self'", 'blob:'],
       },
     },
   }),

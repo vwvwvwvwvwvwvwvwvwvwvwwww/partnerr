@@ -27,6 +27,7 @@ export const createWaybillSchema = z.object({
   actionType: z.enum(actionTypes),
   seedType: z.enum(seedTypes),
   driverName: z.string().trim().min(3).max(150),
+  driverEmail: z.string().trim().email('Некорректный e-mail водителя').max(255).optional().nullable(),
   mechanizatorName: z.string().trim().max(150).optional().nullable(),
   vehicleNumber: z.string().trim().min(2).max(30),
   trailerNumber: z.string().trim().max(30).optional().nullable(),

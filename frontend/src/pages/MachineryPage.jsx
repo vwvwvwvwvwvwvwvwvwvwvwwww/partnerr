@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { machineryApi } from '../api/client';
 import DataTable from '../components/DataTable';
+import PageStack from '../components/PageStack';
 import EntityModalContent from '../components/EntityModalContent';
 import { validateForm } from '../utils/validation';
 
@@ -163,16 +164,13 @@ export default function MachineryPage({ user }) {
   }
 
   return (
-    <div className="page-stack">
+    <PageStack error={error} success={success}>
       <section className="page-header">
         <div>
           <span className="eyebrow">МТП и услуги</span>
           <h2>Реестр техники</h2>
         </div>
       </section>
-
-      {error ? <div className="alert alert--error">{error}</div> : null}
-      {success ? <div className="alert alert--success">{success}</div> : null}
 
       <section>
         {canEditMachinery ? (
@@ -317,6 +315,6 @@ export default function MachineryPage({ user }) {
           rows={rows}
         />
       </section>
-    </div>
+    </PageStack>
   );
 }

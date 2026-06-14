@@ -135,6 +135,7 @@ export const warehouseApi = {
 
 export const harvestApi = {
   list: () => apiGet('/harvest'),
+  listDrivers: () => apiGet('/harvest/drivers'),
   create: (payload) => apiPost('/harvest', payload),
   update: (id, payload) => apiPut(`/harvest/${id}`, payload),
 };
@@ -147,5 +148,7 @@ export const financeApi = {
 };
 
 export const reportsApi = {
+  list: () => apiGet('/reports'),
   summaryDocx: () => apiGetBinary('/reports/summary.docx'),
+  downloadDocx: (id) => apiGetBinary(`/reports/${id}/docx`),
 };

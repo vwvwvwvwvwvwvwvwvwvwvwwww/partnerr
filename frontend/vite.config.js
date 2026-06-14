@@ -18,6 +18,9 @@ export default defineConfig(({ mode }) => {
       port,
       strictPort: false,
       open: '/',
+      watch: {
+        ignored: ['**/node_modules/**', '**/.git/**', '**/dist/**'],
+      },
     },
     plugins: [
       react(),
