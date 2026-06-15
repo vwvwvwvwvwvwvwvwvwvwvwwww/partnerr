@@ -950,6 +950,25 @@
   gap: 16px;
 }
 
+.form-details {
+  margin-top: 4px;
+  padding: 12px 14px;
+  border: 1px dashed #d8d0c4;
+  border-radius: 12px;
+  background: #faf8f5;
+}
+
+.form-details summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: #4a4a4a;
+  user-select: none;
+}
+
+.form-details__grid {
+  margin-top: 14px;
+}
+
 .modal-backdrop {
   position: fixed;
   inset: 0;

@@ -5,6 +5,17 @@ import PageStack from '../components/PageStack';
 import EntityModalContent from '../components/EntityModalContent';
 import StatCard from '../components/StatCard';
 import { validateForm } from '../utils/validation';
+import { todayIsoDate } from '../utils/form-quick';
+
+const financeCategoryPresets = [
+  'Реализация пшеницы озимой',
+  'Реализация подсолнечника',
+  'ГСМ (дизель)',
+  'Заработная плата',
+  'Семена и удобрения',
+  'Ремонт техники',
+  'Субсидия АПК',
+];
 
 const columns = [
   { key: 'operationDate', title: 'Дата' },
@@ -78,11 +89,11 @@ const editFields = [
 ];
 
 const initialForm = {
-  entryType: 'expense',
+  entryType: 'income',
   category: '',
-  amount: 0,
-  operationDate: '',
-  referenceModule: 'warehouse',
+  amount: '',
+  operationDate: todayIsoDate(),
+  referenceModule: 'harvest',
   notes: '',
 };
 
@@ -148,7 +159,10 @@ export default function FinancePage() {
         notes: form.notes || null,
       });
 
-      setForm(initialForm);
+      setForm({
+        ...initialForm,
+        operationDate: todayIsoDate(),
+      });
       setSuccess('Финансовая операция сохранена');
       await reload();
     } catch (apiError) {
@@ -193,45 +207,38 @@ export default function FinancePage() {
           <div className="section-header">
             <div>
               <h2>Новая операция</h2>
+              <p className="section-header__hint">Дата подставляется автоматически. Категорию можно выбрать из списка.</p>
             </div>
           </div>
 
           <div className="form-grid">
             <label className="field">
-              <span>Тип</span>
+              <span>Тип *</span>
               <select value={form.entryType} onChange={(event) => setForm((prev) => ({ ...prev, entryType: event.target.value }))}>
-                <option value="expense">Расход</option>
                 <option value="income">Доход</option>
+                <option value="expense">Расход</option>
               </select>
             </label>
             <label className="field">
-              <span>Категория</span>
-              <input required value={form.category} onChange={(event) => setForm((prev) => ({ ...prev, category: event.target.value }))} />
+              <span>Категория *</span>
+              <input required list="finance-categories" value={form.category} onChange={(event) => setForm((prev) => ({ ...prev, category: event.target.value }))} />
+              <datalist id="finance-categories">
+                {financeCategoryPresets.map((item) => (
+                  <option key={item} value={item} />
+                ))}
+              </datalist>
             </label>
             <label className="field">
-              <span>Сумма</span>
-              <input type="number" min="0.01" step="0.01" value={form.amount} onChange={(event) => setForm((prev) => ({ ...prev, amount: event.target.value }))} />
+              <span>Сумма, ₽ *</span>
+              <input required type="number" min="0.01" step="0.01" placeholder="100000" value={form.amount} onChange={(event) => setForm((prev) => ({ ...prev, amount: event.target.value }))} />
             </label>
             <label className="field">
-              <span>Дата операции</span>
+              <span>Дата *</span>
               <input required type="date" value={form.operationDate} onChange={(event) => setForm((prev) => ({ ...prev, operationDate: event.target.value }))} />
-            </label>
-            <label className="field">
-              <span>Модуль-источник</span>
-              <select value={form.referenceModule} onChange={(event) => setForm((prev) => ({ ...prev, referenceModule: event.target.value }))}>
-                <option value="fields">Поля</option>
-                <option value="planning">Планирование</option>
-                <option value="machinery">Техника</option>
-                <option value="warehouse">Склад</option>
-                <option value="harvest">Урожай</option>
-                <option value="finance">Финансы</option>
-                <option value="hr">Сотрудники</option>
-                <option value="other">Другое</option>
-              </select>
             </label>
             <label className="field field--full">
               <span>Комментарий</span>
-              <input value={form.notes} onChange={(event) => setForm((prev) => ({ ...prev, notes: event.target.value }))} />
+              <input placeholder="Необязательно" value={form.notes} onChange={(event) => setForm((prev) => ({ ...prev, notes: event.target.value }))} />
             </label>
           </div>
 

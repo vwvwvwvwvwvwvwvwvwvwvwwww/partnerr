@@ -94,6 +94,7 @@ export default function EntityModalContent({
   editLabel = 'Изменить данные',
   readOnly = false,
   renderViewActions,
+  advancedFormFields = [],
 }) {
   const [isEditing, setIsEditing] = useState(false);
   const [form, setForm] = useState(initialValues);
@@ -218,6 +219,25 @@ export default function EntityModalContent({
           </label>
         ))}
       </div>
+
+      {advancedFormFields.length > 0 ? (
+        <details className="form-details">
+          <summary>Дополнительные поля (необязательно)</summary>
+          <div className="form-grid form-details__grid">
+            {advancedFormFields.map((field) => (
+              <label
+                className={`field ${field.fullWidth ? 'field--full' : ''} ${fieldErrors[field.name] ? 'field--error' : ''}`.trim()}
+                key={field.name}
+              >
+                <span>{field.label}</span>
+                {renderField(field, form[field.name] ?? '', handleChange)}
+                {fieldErrors[field.name] ? <span className="field__error">{fieldErrors[field.name]}</span> : null}
+                {field.hint || field.placeholder ? <span className="field__hint">{field.hint ?? field.placeholder}</span> : null}
+              </label>
+            ))}
+          </div>
+        </details>
+      ) : null}
 
       <AlertMessage variant="error">{error}</AlertMessage>
 

@@ -5,6 +5,18 @@ import PageStack from '../components/PageStack';
 import EntityModalContent from '../components/EntityModalContent';
 import { validateForm } from '../utils/validation';
 import { hasEmailList } from '../utils/email-list';
+import { buildWaybillDemoForm, nextWaybillNumber, todayIsoDate } from '../utils/form-quick';
+
+const QUICK_WAYBILL_FIELDS = new Set([
+  'documentNumber',
+  'tripDate',
+  'fieldId',
+  'actionType',
+  'seedType',
+  'driverName',
+  'driverEmail',
+  'vehicleNumber',
+]);
 
 const actionOptions = [
   'Боронование',
@@ -96,7 +108,7 @@ const initialForm = {
   shiftNumber: '',
   fieldId: '',
   cropId: '',
-  actionType: 'Посев',
+  actionType: 'Уборка',
   seedType: 'Подсолнечник',
   driverName: '',
   driverEmail: '',
@@ -285,6 +297,29 @@ export default function HarvestPage({ user }) {
     [crops, fields],
   );
 
+  const quickCreateFields = useMemo(
+    () => editFields.filter((field) => QUICK_WAYBILL_FIELDS.has(field.name)),
+    [editFields],
+  );
+
+  const advancedEditFields = useMemo(
+    () => editFields.filter((field) => !QUICK_WAYBILL_FIELDS.has(field.name)),
+    [editFields],
+  );
+
+  useEffect(() => {
+    if (!fields.length) {
+      return;
+    }
+
+    setForm((prev) => ({
+      ...prev,
+      tripDate: prev.tripDate || todayIsoDate(),
+      documentNumber: prev.documentNumber || nextWaybillNumber(rows),
+      fieldId: prev.fieldId || String(fields[0]?.id ?? ''),
+    }));
+  }, [fields, rows]);
+
   useEffect(() => {
     let isActive = true;
 
@@ -370,7 +405,7 @@ export default function HarvestPage({ user }) {
     setError('');
     setSuccess('');
 
-    const validation = validateForm(form, editFields);
+    const validation = validateForm(form, quickCreateFields);
 
     if (validation.firstError) {
       setError(validation.firstError);
@@ -416,7 +451,12 @@ export default function HarvestPage({ user }) {
         ticketPhotoUrl: form.ticketPhotoUrl || null,
       });
 
-      setForm(initialForm);
+      setForm({
+        ...initialForm,
+        tripDate: todayIsoDate(),
+        documentNumber: nextWaybillNumber(rows.length ? rows : [{ documentNumber: form.documentNumber }]),
+        fieldId: fields[0] ? String(fields[0].id) : '',
+      });
       const emailNote = formatEmailFeedback(response.email);
       setSuccess(
         emailNote ? `Путевой лист сохранён. ${emailNote}` : 'Путевой лист сохранён',
@@ -497,6 +537,12 @@ export default function HarvestPage({ user }) {
     return Math.max(start + issued - end, 0);
   }, [form.fuelActualLiters, form.fuelEndLiters, form.fuelIssuedLiters, form.fuelStartLiters]);
 
+  function fillDemoForm() {
+    setForm(buildWaybillDemoForm({ fields, crops, rows }));
+    setSuccess('Форма заполнена примером — проверьте и нажмите «Сохранить»');
+    setError('');
+  }
+
   const routeDuration = useMemo(
     () => calculateDurationHours(form.departureTime, form.returnTime),
     [form.departureTime, form.returnTime],
@@ -518,7 +564,7 @@ export default function HarvestPage({ user }) {
             <div>
               <h2>Новый путевой лист</h2>
               <p className="section-header__hint">
-                После сохранения DOCX отправляется на все указанные e-mail (через запятую). Дополнительные адреса можно задать в WAYBILL_NOTIFY_EMAILS на сервере.
+                Для демонстрации достаточно 8 полей ниже. Остальное — в блоке «Дополнительно» или кнопка «Заполнить примером».
               </p>
               {smtpStatus && !smtpStatus.configured ? (
                 <p className="section-header__hint field__error" style={{ marginTop: '0.5rem' }}>
@@ -526,19 +572,24 @@ export default function HarvestPage({ user }) {
                 </p>
               ) : null}
             </div>
+            <div className="button-row">
+              <button className="button button--secondary" onClick={fillDemoForm} type="button">
+                Заполнить примером
+              </button>
+            </div>
           </div>
 
           <div className="form-grid">
             <label className="field">
-              <span>Номер путевого листа</span>
+              <span>№ путевого листа *</span>
               <input required value={form.documentNumber} onChange={(event) => setForm((prev) => ({ ...prev, documentNumber: event.target.value }))} />
             </label>
             <label className="field">
-              <span>Смена</span>
-              <input value={form.shiftNumber} onChange={(event) => setForm((prev) => ({ ...prev, shiftNumber: event.target.value }))} />
+              <span>Дата рейса *</span>
+              <input required type="date" value={form.tripDate} onChange={(event) => setForm((prev) => ({ ...prev, tripDate: event.target.value }))} />
             </label>
             <label className="field">
-              <span>Поле</span>
+              <span>Поле *</span>
               <select required value={form.fieldId} onChange={(event) => setForm((prev) => ({ ...prev, fieldId: event.target.value }))}>
                 <option value="">Выберите поле</option>
                 {fields.map((field) => (
@@ -547,7 +598,7 @@ export default function HarvestPage({ user }) {
               </select>
             </label>
             <label className="field">
-              <span>Вид работ</span>
+              <span>Вид работ *</span>
               <select value={form.actionType} onChange={(event) => setForm((prev) => ({ ...prev, actionType: event.target.value }))}>
                 {actionOptions.map((action) => (
                   <option key={action} value={action}>{action}</option>
@@ -555,7 +606,7 @@ export default function HarvestPage({ user }) {
               </select>
             </label>
             <label className="field">
-              <span>Семена</span>
+              <span>Семена / культура *</span>
               <select value={form.seedType} onChange={(event) => setForm((prev) => ({ ...prev, seedType: event.target.value }))}>
                 {seedOptions.map((seed) => (
                   <option key={seed} value={seed}>{seed}</option>
@@ -563,19 +614,11 @@ export default function HarvestPage({ user }) {
               </select>
             </label>
             <label className="field">
-              <span>Культура из справочника</span>
-              <select value={form.cropId} onChange={(event) => setForm((prev) => ({ ...prev, cropId: event.target.value }))}>
-                <option value="">Не выбрано</option>
-                {crops.map((crop) => (
-                  <option key={crop.id} value={crop.id}>{crop.name}</option>
-                ))}
-              </select>
-            </label>
-            <label className="field">
-              <span>Водитель</span>
+              <span>Водитель *</span>
               <input
                 required
                 list="harvest-drivers"
+                placeholder="Иванов Пётр Сергеевич"
                 value={form.driverName}
                 onChange={(event) => setForm((prev) => ({ ...prev, driverName: event.target.value }))}
               />
@@ -586,9 +629,9 @@ export default function HarvestPage({ user }) {
               </datalist>
             </label>
             <label className="field">
-              <span>E-mail для уведомлений</span>
+              <span>E-mail (через запятую)</span>
               <input
-                placeholder="voditel@mail.ru, agronom@mail.ru, buh@mail.ru"
+                placeholder="voditel@mail.ru, buh@mail.ru"
                 value={form.driverEmail}
                 onChange={(event) => setForm((prev) => ({ ...prev, driverEmail: event.target.value }))}
                 onBlur={() => {
@@ -600,82 +643,63 @@ export default function HarvestPage({ user }) {
                   }
                 }}
               />
-              <span className="field__hint">Несколько адресов — через запятую или точку с запятой</span>
+            </label>
+            <label className="field">
+              <span>Гос. номер ТС *</span>
+              <input required placeholder="К456МН56" value={form.vehicleNumber} onChange={(event) => setForm((prev) => ({ ...prev, vehicleNumber: event.target.value }))} />
+            </label>
+          </div>
+
+          <details className="form-details">
+            <summary>Дополнительно (необязательно)</summary>
+            <div className="form-grid form-details__grid">
+            <label className="field">
+              <span>Смена</span>
+              <input value={form.shiftNumber} onChange={(event) => setForm((prev) => ({ ...prev, shiftNumber: event.target.value }))} />
+            </label>
+            <label className="field">
+              <span>Культура из справочника</span>
+              <select value={form.cropId} onChange={(event) => setForm((prev) => ({ ...prev, cropId: event.target.value }))}>
+                <option value="">Не выбрано</option>
+                {crops.map((crop) => (
+                  <option key={crop.id} value={crop.id}>{crop.name}</option>
+                ))}
+              </select>
             </label>
             <label className="field">
               <span>Механизатор</span>
               <input value={form.mechanizatorName} onChange={(event) => setForm((prev) => ({ ...prev, mechanizatorName: event.target.value }))} />
             </label>
             <label className="field">
-              <span>Транспорт</span>
-              <input required value={form.vehicleNumber} onChange={(event) => setForm((prev) => ({ ...prev, vehicleNumber: event.target.value }))} />
-            </label>
-            <label className="field">
-              <span>Прицеп / полуприцеп</span>
+              <span>Прицеп</span>
               <input value={form.trailerNumber} onChange={(event) => setForm((prev) => ({ ...prev, trailerNumber: event.target.value }))} />
             </label>
             <label className="field">
-              <span>Трактор / тягач</span>
+              <span>Трактор</span>
               <input value={form.tractorModel} onChange={(event) => setForm((prev) => ({ ...prev, tractorModel: event.target.value }))} />
             </label>
             <label className="field">
-              <span>С/х машина / оборудование</span>
+              <span>Оборудование</span>
               <input value={form.equipmentName} onChange={(event) => setForm((prev) => ({ ...prev, equipmentName: event.target.value }))} />
             </label>
             <label className="field">
-              <span>Дата рейса</span>
-              <input required type="date" value={form.tripDate} onChange={(event) => setForm((prev) => ({ ...prev, tripDate: event.target.value }))} />
-            </label>
-            <label className="field">
-              <span>Время выезда</span>
+              <span>Выезд</span>
               <input type="time" value={form.departureTime} onChange={(event) => setForm((prev) => ({ ...prev, departureTime: event.target.value }))} />
             </label>
             <label className="field">
-              <span>Время возврата</span>
+              <span>Возврат</span>
               <input type="time" value={form.returnTime} onChange={(event) => setForm((prev) => ({ ...prev, returnTime: event.target.value }))} />
             </label>
             <label className="field">
-              <span>Объем работ, га / т</span>
+              <span>Объём, га</span>
               <input type="number" min="0" step="0.01" value={form.workVolumeHa} onChange={(event) => setForm((prev) => ({ ...prev, workVolumeHa: event.target.value }))} />
             </label>
             <label className="field">
-              <span>Пробег по маршруту, км</span>
+              <span>Пробег, км</span>
               <input type="number" min="0" step="0.01" value={form.routeDistanceKm} onChange={(event) => setForm((prev) => ({ ...prev, routeDistanceKm: event.target.value }))} />
             </label>
             <label className="field">
-              <span>Одометр начало, км</span>
-              <input type="number" min="0" step="0.01" value={form.startOdometerKm} onChange={(event) => setForm((prev) => ({ ...prev, startOdometerKm: event.target.value }))} />
-            </label>
-            <label className="field">
-              <span>Одометр конец, км</span>
-              <input type="number" min="0" step="0.01" value={form.endOdometerKm} onChange={(event) => setForm((prev) => ({ ...prev, endOdometerKm: event.target.value }))} />
-            </label>
-            <label className="field">
-              <span>Моточасы начало</span>
-              <input type="number" min="0" step="0.01" value={form.startEngineHours} onChange={(event) => setForm((prev) => ({ ...prev, startEngineHours: event.target.value }))} />
-            </label>
-            <label className="field">
-              <span>Моточасы конец</span>
-              <input type="number" min="0" step="0.01" value={form.endEngineHours} onChange={(event) => setForm((prev) => ({ ...prev, endEngineHours: event.target.value }))} />
-            </label>
-            <label className="field">
-              <span>Пункт назначения</span>
-              <input value={form.destination} onChange={(event) => setForm((prev) => ({ ...prev, destination: event.target.value }))} />
-            </label>
-            <label className="field">
-              <span>Получатель / склад</span>
-              <input value={form.receiverName} onChange={(event) => setForm((prev) => ({ ...prev, receiverName: event.target.value }))} />
-            </label>
-            <label className="field">
-              <span>Погодные условия</span>
-              <input value={form.weatherConditions} onChange={(event) => setForm((prev) => ({ ...prev, weatherConditions: event.target.value }))} />
-            </label>
-            <label className="field">
-              <span>Ответственный</span>
-              <input value={form.responsiblePerson} onChange={(event) => setForm((prev) => ({ ...prev, responsiblePerson: event.target.value }))} />
-            </label>
-            <label className="field">
-              <span>Вес брутто, кг</span>
+              <span>Брутто, кг</span>
               <input type="number" min="0" step="0.01" value={form.grossWeightKg} onChange={(event) => setForm((prev) => ({ ...prev, grossWeightKg: event.target.value }))} />
             </label>
             <label className="field">
@@ -683,34 +707,23 @@ export default function HarvestPage({ user }) {
               <input type="number" min="0" step="0.01" value={form.tareWeightKg} onChange={(event) => setForm((prev) => ({ ...prev, tareWeightKg: event.target.value }))} />
             </label>
             <label className="field">
-              <span>Выдано ГСМ, л</span>
-              <input type="number" min="0" step="0.01" value={form.fuelIssuedLiters} onChange={(event) => setForm((prev) => ({ ...prev, fuelIssuedLiters: event.target.value }))} />
-            </label>
-            <label className="field">
-              <span>Остаток ГСМ на начало, л</span>
-              <input type="number" min="0" step="0.01" value={form.fuelStartLiters} onChange={(event) => setForm((prev) => ({ ...prev, fuelStartLiters: event.target.value }))} />
-            </label>
-            <label className="field">
-              <span>Остаток ГСМ на конец, л</span>
-              <input type="number" min="0" step="0.01" value={form.fuelEndLiters} onChange={(event) => setForm((prev) => ({ ...prev, fuelEndLiters: event.target.value }))} />
-            </label>
-            <label className="field">
-              <span>Фактический расход ГСМ, л</span>
+              <span>ГСМ, л</span>
               <input type="number" min="0" step="0.01" value={form.fuelActualLiters} onChange={(event) => setForm((prev) => ({ ...prev, fuelActualLiters: event.target.value }))} />
             </label>
-            <label className="field field--full">
-              <span>Маршрут / описание рейса</span>
-              <input value={form.routeDescription} onChange={(event) => setForm((prev) => ({ ...prev, routeDescription: event.target.value }))} />
+            <label className="field">
+              <span>Куда</span>
+              <input value={form.destination} onChange={(event) => setForm((prev) => ({ ...prev, destination: event.target.value }))} />
+            </label>
+            <label className="field">
+              <span>Получатель</span>
+              <input value={form.receiverName} onChange={(event) => setForm((prev) => ({ ...prev, receiverName: event.target.value }))} />
             </label>
             <label className="field field--full">
               <span>Примечание</span>
               <input value={form.notes} onChange={(event) => setForm((prev) => ({ ...prev, notes: event.target.value }))} />
             </label>
-            <label className="field field--full">
-              <span>Ссылка на фото чека</span>
-              <input value={form.ticketPhotoUrl} onChange={(event) => setForm((prev) => ({ ...prev, ticketPhotoUrl: event.target.value }))} />
-            </label>
-          </div>
+            </div>
+          </details>
 
           <button className="button" type="submit">Сохранить рейс</button>
         </form>
@@ -764,7 +777,8 @@ export default function HarvestPage({ user }) {
           renderModalContent={(row, closeModal) => (
             <EntityModalContent
               detailsFields={detailsFields}
-              formFields={editFields}
+              formFields={quickCreateFields}
+              advancedFormFields={advancedEditFields}
               readOnly={!canEditHarvest}
               renderViewActions={
                 canEditHarvest
